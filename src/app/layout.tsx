@@ -5,6 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 export const metadata: Metadata = {
   title: 'ReadySetPlay 2.0',
   description: 'Your ultimate setlist manager.',
+  manifest: '/manifest.json',
 };
 
 export default function RootLayout({
@@ -19,6 +20,7 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet" />
+        <meta name="theme-color" content="#000000" />
       </head>
       <body className="font-body antialiased" suppressHydrationWarning>
         {children}
