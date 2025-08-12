@@ -73,11 +73,11 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   const scrollStep = useCallback(() => {
     if (!viewportRef.current) return;
     
-    const minPixelsPerFrame = 0.1;
-    const maxPixelsPerFrame = 10;
+    // Scale scroll speed: 1-100 -> 0.05 to 5 pixels per frame for slower scrolling.
+    const minPixelsPerFrame = 0.05;
+    const maxPixelsPerFrame = 5;
     
-    // Scale the scroll speed non-linearly to have more control at lower speeds
-    const speed = minPixelsPerFrame + ((maxPixelsPerFrame - minPixelsPerFrame) * (scrollSpeed / 100));
+    const speed = minPixelsPerFrame + ((maxPixelsPerFrame - minPixelsPerFrame) * ((scrollSpeed - 1) / 99));
     
     scrollAccumulatorRef.current += speed;
 
@@ -191,4 +191,3 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
     </div>
   );
 }
-
