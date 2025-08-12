@@ -3,9 +3,9 @@
 import React from 'react';
 import type { Setlist } from '@/lib/types';
 import { useAppContext } from '@/contexts/app-provider';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Music, PlusCircle, Trash2 } from 'lucide-react';
+import { Music, Trash2 } from 'lucide-react';
 import { SongEditor } from './song-editor';
 
 interface SetlistViewProps {
@@ -22,11 +22,7 @@ export function SetlistView({ setlist }: SetlistViewProps) {
           <h1 className="text-4xl font-bold font-headline">{setlist.name}</h1>
           <p className="text-muted-foreground">{setlist.songs.length} songs</p>
         </div>
-        <SongEditor setlistId={setlist.id}>
-          <Button>
-            <PlusCircle className="mr-2 h-4 w-4" /> Add Song
-          </Button>
-        </SongEditor>
+        <SongEditor setlistId={setlist.id} />
       </div>
       <div className="space-y-4">
         {setlist.songs.length > 0 ? (

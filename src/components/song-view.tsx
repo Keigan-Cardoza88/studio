@@ -6,7 +6,7 @@ import { useAppContext } from '@/contexts/app-provider';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { transpose } from '@/lib/transpose';
-import { ArrowLeft, Minus, Plus, Play, Pause, Edit, FastForward, Rewind } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Play, Pause, FastForward, Rewind } from 'lucide-react';
 import { SongEditor } from './song-editor';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -101,9 +101,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
           </div>
 
           <div className="flex items-center gap-2 col-span-2 md:col-span-1 justify-center">
-            <SongEditor setlistId={setlistId} song={song}>
-              <Button variant="outline" size="icon"><Edit/></Button>
-            </SongEditor>
+            <SongEditor setlistId={setlistId} song={song} />
             <Button size="icon" className="w-16 h-16 rounded-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={toggleScroll}>
               {isScrolling ? <Pause className="w-8 h-8"/> : <Play className="w-8 h-8"/>}
             </Button>
