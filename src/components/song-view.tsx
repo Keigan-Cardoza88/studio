@@ -73,7 +73,9 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
     if (viewportRef.current) {
         const { scrollTop, scrollHeight, clientHeight } = viewportRef.current;
         if (scrollTop < scrollHeight - clientHeight) {
-            const speed = scrollSpeed / 50;
+            // A speed of 1 is slow, 100 is fast.
+            // This formula provides a range from 0.1 pixels/frame to 10 pixels/frame.
+            const speed = (scrollSpeed / 100) * 1;
             viewportRef.current.scrollTop += speed;
             scrollRef.current = requestAnimationFrame(scrollStep);
         } else {
@@ -174,3 +176,4 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
     </div>
   );
 }
+
