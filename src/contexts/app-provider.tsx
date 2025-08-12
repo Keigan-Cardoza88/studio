@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import type { Setlist, Song } from '@/lib/types';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
@@ -26,6 +26,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [setlists, setSetlists] = useLocalStorage<Setlist[]>('setlists', defaultSetlists);
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const addSetlist = (name: string) => {
     const newSetlist: Setlist = {
@@ -87,11 +92,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const activeSetlist = setlists.find(s => s.id === activeSetlistId) || null;
-  const activeSong = activeSetlist?.songs.find(s => s.id === activeSongId) || null;
+  const activeSetlist = isClient ? setlists.find(s => s.id === activeSetlistId) || null : null;
+  const activeSong = isClient ? activeSetlist?.songs.find(s => s.id === activeSongId) || null : null;
 
   const value = {
-    setlists,
+    setlists: isClient ? setlists : [],
     addSetlist,
     updateSetlist,
     deleteSetlist,
