@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState } from 'react';
@@ -6,7 +7,8 @@ import { Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, S
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { Music, PlusCircle } from 'lucide-react';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { Music, PlusCircle, Trash2 } from 'lucide-react';
 import { useForm, SubmitHandler } from "react-hook-form";
 
 type Inputs = {
@@ -14,17 +16,22 @@ type Inputs = {
 };
 
 export function SetlistSidebar() {
-  const { setlists, addSetlist, activeSetlistId, setActiveSetlistId } = useAppContext();
-  const [isOpen, setIsOpen] = useState(false);
+  const { setlists, addSetlist, activeSetlistId, setActiveSetlistId, deleteSetlist } = useAppContext();
+  const [isNewSetlistOpen, setIsNewSetlistOpen] = useState(false);
   const { register, handleSubmit, reset } = useForm<Inputs>();
 
   const onSubmit: SubmitHandler<Inputs> = (data) => {
     if (data.name.trim()) {
       addSetlist(data.name.trim());
       reset();
-      setIsOpen(false);
+      setIsNewSetlistOpen(false);
     }
   };
+
+  const handleDeleteSetlist = (e: React.MouseEvent, setlistId: string) => {
+    e.stopPropagation();
+    deleteSetlist(setlistId);
+  }
 
   return (
     <Sidebar>
@@ -37,7 +44,7 @@ export function SetlistSidebar() {
       <SidebarContent>
         <SidebarMenu>
           <SidebarMenuItem>
-            <Dialog open={isOpen} onOpenChange={setIsOpen}>
+            <Dialog open={isNewSetlistOpen} onOpenChange={setIsNewSetlistOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" className="w-full justify-start">
                   <PlusCircle className="mr-2 h-4 w-4" />
@@ -61,13 +68,33 @@ export function SetlistSidebar() {
             </Dialog>
           </SidebarMenuItem>
           {setlists.map((setlist) => (
-            <SidebarMenuItem key={setlist.id}>
+            <SidebarMenuItem key={setlist.id} className="group/item">
               <SidebarMenuButton
                 isActive={setlist.id === activeSetlistId}
                 onClick={() => setActiveSetlistId(setlist.id)}
+                className="w-full"
               >
-                {setlist.name}
+                <span className="truncate flex-grow text-left">{setlist.name}</span>
               </SidebarMenuButton>
+               <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="ghost" size="icon" className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 opacity-0 group-hover/item:opacity-100">
+                    <Trash2 className="h-4 w-4 text-destructive" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the "{setlist.name}" setlist and all its songs.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={(e) => handleDeleteSetlist(e, setlist.id)}>Delete</AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
             </SidebarMenuItem>
           ))}
         </SidebarMenu>
