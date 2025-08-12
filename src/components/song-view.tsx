@@ -73,7 +73,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
     if (viewportRef.current) {
         const { scrollTop, scrollHeight, clientHeight } = viewportRef.current;
         if (scrollTop < scrollHeight - clientHeight) {
-            const speed = (scrollSpeed / 100) * 0.5 + 0.1;
+            const speed = scrollSpeed / 50;
             viewportRef.current.scrollTop += speed;
             scrollRef.current = requestAnimationFrame(scrollStep);
         } else {
