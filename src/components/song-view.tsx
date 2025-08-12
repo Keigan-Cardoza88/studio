@@ -39,13 +39,13 @@ const renderLyrics = (text: string) => {
   return text.split('\n').map((line, lineIndex) => {
     if (isChordLine(line)) {
         return (
-            <p key={lineIndex} className="font-bold text-accent leading-normal">
+            <p key={lineIndex} className="font-bold text-accent leading-tight">
                 {line}
             </p>
         );
     }
     return (
-        <p key={lineIndex} className="mb-1 leading-normal">
+        <p key={lineIndex} className="mb-1 leading-tight">
         {line.split(/(\[[^\]]+\])/g).map((part, partIndex) => {
             if (part.startsWith('[') && part.endsWith(']')) {
             return (
@@ -71,19 +71,15 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
 
   const scrollStep = useCallback(() => {
     if (!viewportRef.current || !isScrolling) return;
-  
-    // This formula creates a smoother, more controllable curve.
-    // The base speed ensures it moves even at the lowest setting.
-    // The exponent makes the slider feel more responsive at higher speeds.
-    const baseSpeed = 0.005; 
-    const speedMultiplier = (scrollSpeed / 100) ** 2;
-    const increment = baseSpeed + speedMultiplier * 0.5;
-  
+
+    const maxIncrement = 5; // Corresponds to the fastest speed
+    const minIncrement = 0.1; // Corresponds to the slowest speed
+    const increment = minIncrement + (scrollSpeed / 100) * (maxIncrement - minIncrement);
+
     scrollAccumulatorRef.current += increment;
-  
-    const scrollAmount = Math.floor(scrollAccumulatorRef.current);
-    
-    if (scrollAmount >= 1) {
+
+    if (scrollAccumulatorRef.current >= 1) {
+        const scrollAmount = Math.floor(scrollAccumulatorRef.current);
         const { scrollTop, scrollHeight, clientHeight } = viewportRef.current;
         if (scrollTop < scrollHeight - clientHeight) {
             viewportRef.current.scrollTop += scrollAmount;
@@ -133,15 +129,15 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   const transposedLyrics = transpose(song.lyricsWithChords, song.transpose);
 
   return (
-    <div className="h-screen flex flex-col p-1">
+    <div className="h-screen flex flex-col p-1 mt-[10px]">
         <header className="flex-shrink-0">
             <Button variant="ghost" onClick={onBack} className="mb-1">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Setlist
             </Button>
             <div className="flex justify-between items-center mb-1 px-1">
                 <div>
-                <h1 className="text-xl font-bold font-headline">{song.title}</h1>
-                <p className="text-base text-muted-foreground">{song.artist}</p>
+                <h1 className="text-lg font-bold font-headline">{song.title}</h1>
+                <p className="text-sm text-muted-foreground">{song.artist}</p>
                 </div>
                 <SongEditor setlistId={setlistId} song={song} />
             </div>
@@ -150,7 +146,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
         <main className="flex-grow overflow-hidden pt-0">
             <Card className="h-full flex flex-col">
                 <ScrollArea className="flex-grow" viewportRef={viewportRef}>
-                    <CardContent className="p-2 text-base font-mono whitespace-pre-wrap">
+                    <CardContent className="p-2 text-sm font-mono whitespace-pre-wrap">
                         {renderLyrics(transposedLyrics)}
                     </CardContent>
                 </ScrollArea>
@@ -158,34 +154,35 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
         </main>
 
         <footer className="flex-shrink-0 bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-2 z-10">
-            <div className="max-w-4xl mx-auto grid grid-cols-3 gap-4 items-center">
-                <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold hidden md:block">Key</h3>
-                    <Button variant="outline" size="icon" onClick={() => handleTranspose(-1)}><Minus/></Button>
-                    <span className="font-bold text-lg w-12 text-center">{song.transpose > 0 ? `+${song.transpose}` : song.transpose}</span>
-                    <Button variant="outline" size="icon" onClick={() => handleTranspose(1)}><Plus/></Button>
+            <div className="max-w-4xl mx-auto grid grid-cols-3 gap-2 items-center">
+                <div className="flex items-center gap-1">
+                    <h3 className="text-xs font-semibold hidden md:block">Key</h3>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleTranspose(-1)}><Minus/></Button>
+                    <span className="font-bold text-base w-10 text-center">{song.transpose > 0 ? `+${song.transpose}` : song.transpose}</span>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleTranspose(1)}><Plus/></Button>
                 </div>
 
                 <div className="flex items-center gap-2 justify-center">
-                    <Button size="icon" className="w-16 h-16 rounded-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={toggleScroll}>
-                    {isScrolling ? <Pause className="w-8 h-8"/> : <Play className="w-8 h-8"/>}
+                    <Button size="icon" className="w-12 h-12 rounded-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={toggleScroll}>
+                    {isScrolling ? <Pause className="w-6 h-6"/> : <Play className="w-6 h-6"/>}
                     </Button>
                 </div>
 
                 <div className="flex items-center gap-2 justify-end">
-                    <h3 className="text-sm font-semibold hidden md:block">Speed</h3>
+                    <h3 className="text-xs font-semibold hidden md:block">Speed</h3>
                     <Slider
                         defaultValue={[scrollSpeed]}
                         min={1}
                         max={100}
                         step={1}
                         onValueChange={handleScrollSpeedChange}
-                        className="w-[340px]"
+                        className="w-[200px] md:w-[340px]"
                     />
-                    <span className="font-bold text-lg w-12 text-center">{scrollSpeed}</span>
+                    <span className="font-bold text-base w-10 text-center">{scrollSpeed}</span>
                 </div>
             </div>
         </footer>
     </div>
   );
-}
+
+    
