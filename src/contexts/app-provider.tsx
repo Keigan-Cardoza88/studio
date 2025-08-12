@@ -20,16 +20,7 @@ interface AppContextType {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
-const defaultSetlists: Setlist[] = [
-    {
-        id: '1',
-        name: 'Acoustic Gig',
-        songs: [
-            { id: 's1', title: 'Wonderwall', artist: 'Oasis', lyricsWithChords: "[Em]Today is gonna be the day that they're gonna throw it back to you\n[G]By now you should've somehow realized what you gotta do\n[D]I don't believe that anybody feels the way I do\n[A]About you now", transpose: 0, scrollSpeed: 20 },
-            { id: 's2', title: 'Creep', artist: 'Radiohead', lyricsWithChords: "[G]When you were here before\n[B]Couldn't look you in the eye\n[C]You're just like an angel\n[Cm]Your skin makes me cry", transpose: 0, scrollSpeed: 15 },
-        ]
-    }
-];
+const defaultSetlists: Setlist[] = [];
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [setlists, setSetlists] = useLocalStorage<Setlist[]>('setlists', defaultSetlists);
