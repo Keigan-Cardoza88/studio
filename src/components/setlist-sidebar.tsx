@@ -1,24 +1,28 @@
 
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAppContext } from '@/contexts/app-provider';
 import { Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Music, PlusCircle, Trash2 } from 'lucide-react';
+import { Music, PlusCircle, Trash2, Upload, Download } from 'lucide-react';
 import { useForm, SubmitHandler } from "react-hook-form";
+import type { Setlist } from '@/lib/types';
+import { useToast } from '@/hooks/use-toast';
 
 type Inputs = {
   name: string;
 };
 
 export function SetlistSidebar() {
-  const { setlists, addSetlist, activeSetlistId, setActiveSetlistId, deleteSetlist } = useAppContext();
+  const { setlists, addSetlist, activeSetlistId, setActiveSetlistId, deleteSetlist, importSetlists } = useAppContext();
   const [isNewSetlistOpen, setIsNewSetlistOpen] = useState(false);
   const { register, handleSubmit, reset } = useForm<Inputs>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   const onSubmit: SubmitHandler<Inputs> = (data) => {
     if (data.name.trim()) {
@@ -33,6 +37,80 @@ export function SetlistSidebar() {
     deleteSetlist(setlistId);
   }
 
+  const handleExportSetlists = () => {
+    if (setlists.length === 0) {
+      toast({
+        title: "Nothing to Export",
+        description: "You don't have any setlists to export.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const dataStr = JSON.stringify(setlists, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `readysetplay_setlists.rsp`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+     toast({
+      title: "Export Successful",
+      description: "Your setlists have been saved.",
+    });
+  };
+
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') throw new Error("File is not valid text.");
+        const importedData = JSON.parse(text);
+        
+        // Basic validation
+        if (Array.isArray(importedData) && importedData.every(s => s.id && s.name && Array.isArray(s.songs))) {
+          importSetlists(importedData as Setlist[]);
+          toast({
+            title: "Import Successful",
+            description: "Setlists have been imported.",
+          });
+        } else {
+          throw new Error("Invalid .rsp file format.");
+        }
+      } catch (error) {
+        toast({
+          title: "Import Failed",
+          description: error instanceof Error ? error.message : "An unknown error occurred.",
+          variant: "destructive",
+        });
+      } finally {
+        // Reset file input
+        if(fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      }
+    };
+    reader.onerror = () => {
+       toast({
+          title: "Import Failed",
+          description: "Could not read the selected file.",
+          variant: "destructive",
+        });
+    };
+    reader.readAsText(file);
+  };
+
+
   return (
     <Sidebar>
       <SidebarHeader>
@@ -43,7 +121,7 @@ export function SetlistSidebar() {
       </SidebarHeader>
       <SidebarContent>
         <SidebarMenu>
-          <SidebarMenuItem>
+           <SidebarMenuItem>
             <Dialog open={isNewSetlistOpen} onOpenChange={setIsNewSetlistOpen}>
               <DialogTrigger asChild>
                 <Button variant="ghost" className="w-full justify-start">
@@ -99,7 +177,27 @@ export function SetlistSidebar() {
           ))}
         </SidebarMenu>
       </SidebarContent>
+       <SidebarMenu>
+        <SidebarMenuItem>
+          <Button variant="ghost" className="w-full justify-start" onClick={handleImportClick}>
+            <Upload className="mr-2 h-4 w-4" />
+            Import Setlist
+          </Button>
+          <input
+            type="file"
+            ref={fileInputRef}
+            onChange={handleFileChange}
+            accept=".rsp,application/json"
+            className="hidden"
+          />
+        </SidebarMenuItem>
+        <SidebarMenuItem>
+          <Button variant="ghost" className="w-full justify-start" onClick={handleExportSetlists}>
+            <Download className="mr-2 h-4 w-4" />
+            Export All
+          </Button>
+        </SidebarMenuItem>
+      </SidebarMenu>
     </Sidebar>
   );
 }
-

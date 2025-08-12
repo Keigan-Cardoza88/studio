@@ -1,8 +1,10 @@
+
 "use client";
 
 import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import type { Setlist, Song } from '@/lib/types';
 import { useLocalStorage } from '@/hooks/use-local-storage';
+import { useToast } from '@/hooks/use-toast';
 
 interface AppContextType {
   setlists: Setlist[];
@@ -18,6 +20,7 @@ interface AppContextType {
   activeSong: Song | null;
   setActiveSongId: (id: string | null) => void;
   activeSongId: string | null;
+  importSetlists: (importedSetlists: Setlist[]) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -29,6 +32,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
   const [activeSongId, setActiveSongId] = useState<string | null>(null);
   const [isClient, setIsClient] = useState(false);
+  const { toast } = useToast();
 
   useEffect(() => {
     setIsClient(true);
@@ -95,6 +99,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setActiveSongId(null);
     }
   };
+  
+  const importSetlists = (importedSetlists: Setlist[]) => {
+    setSetlists(currentSetlists => {
+      const currentIds = new Set(currentSetlists.map(s => s.id));
+      const newSetlists = importedSetlists.filter(s => !currentIds.has(s.id));
+      
+      if (newSetlists.length === 0) {
+        toast({
+          title: "No new setlists to import",
+          description: "All setlists from the file already exist in your library.",
+        });
+        return currentSetlists;
+      }
+
+      return [...currentSetlists, ...newSetlists];
+    });
+  };
+
 
   const activeSetlist = isClient ? setlists.find(s => s.id === activeSetlistId) || null : null;
   const activeSong = isClient ? activeSetlist?.songs.find(s => s.id === activeSongId) || null : null;
@@ -118,6 +140,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     activeSong,
     setActiveSongId,
     activeSongId,
+    importSetlists,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
