@@ -68,7 +68,7 @@ export function SongEditor({ setlistId, song }: SongEditorProps) {
             <Input {...register("title", { required: true })} placeholder="Song Title" />
             <Input {...register("artist", { required: true })} placeholder="Artist" />
             <Textarea 
-              {...register("lyricsWithChords", { required: true })} 
+              {...register("lyricsWithChords")} 
               placeholder="Lyrics with chords, e.g., [Am]Some lyrics..."
               className="h-64 font-mono"
             />
