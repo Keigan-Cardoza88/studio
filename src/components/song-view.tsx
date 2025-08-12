@@ -23,17 +23,14 @@ const chordRegex = /\[([^\]]+)\]/;
 const isChordLine = (line: string): boolean => {
     if (line.trim().length === 0) return false;
     
-    if (chordRegex.test(line)) return false;
-
-    const lyricRegex = /[a-z]/; 
-    if (lyricRegex.test(line.toLowerCase())) {
-        const nonChordWords = line.toLowerCase().replace(/(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13)/g, '').trim();
-        if (/[a-z]/.test(nonChordWords)) {
-            return false;
-        }
+    // This is a line with chords and lyrics, like "[Am]Some lyrics"
+    if (chordRegex.test(line)) {
+        const justLyrics = line.replace(/\[([^\]]+)\]/g, '').trim();
+        if (justLyrics.length > 0) return false;
     }
 
     const potentialChords = line.trim().split(/\s+/);
+    // This pattern is simplified and may not catch all complex chords, but covers the basics.
     const chordPattern = /^[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13)?(\/[A-G](b|#)?)?$/i;
     return potentialChords.every(pc => chordPattern.test(pc));
 };
@@ -71,17 +68,21 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   const [scrollSpeed, setScrollSpeed] = useState(song.scrollSpeed || 20);
   const scrollRef = useRef<number | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const viewportRef = useRef<HTMLDivElement>(null);
 
   const scrollStep = useCallback(() => {
-    if (scrollAreaRef.current) {
-        const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current;
+    if (viewportRef.current) {
+        const { scrollTop, scrollHeight, clientHeight } = viewportRef.current;
         if (scrollTop + clientHeight >= scrollHeight) {
             setIsScrolling(false);
             if (scrollRef.current) cancelAnimationFrame(scrollRef.current);
             return;
         }
-        const speed = scrollSpeed / 50; 
-        scrollAreaRef.current.scrollTop += speed;
+        // This calculation maps the slider value (0-100) to a reasonable scroll speed.
+        // The "+ 0.1" prevents speed from being 0 unless slider is at the very beginning.
+        // The division by a larger number creates a slower, more controllable scroll.
+        const speed = (scrollSpeed / 100) * 1.5 + 0.1; 
+        viewportRef.current.scrollTop += speed;
         scrollRef.current = requestAnimationFrame(scrollStep);
     }
   }, [scrollSpeed]);
@@ -105,7 +106,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   
   useEffect(() => {
       setIsScrolling(false);
-      if (scrollAreaRef.current) scrollAreaRef.current.scrollTop = 0;
+      if (viewportRef.current) viewportRef.current.scrollTop = 0;
   }, [song.id]);
 
 
@@ -138,7 +139,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
       
         <main className="flex-grow mb-2 overflow-hidden">
             <Card className="h-full flex flex-col">
-                <ScrollArea className="flex-grow" viewportRef={scrollAreaRef}>
+                <ScrollArea className="flex-grow" ref={scrollAreaRef} viewportRef={viewportRef}>
                     <CardContent className="p-6 text-xl font-mono whitespace-pre-wrap">
                         {renderLyrics(transposedLyrics)}
                     </CardContent>
