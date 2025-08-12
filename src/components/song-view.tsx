@@ -16,21 +16,45 @@ interface SongViewProps {
   onBack: () => void;
 }
 
+const chordRegex = /\[([^\]]+)\]/;
+
+const isChordLine = (line: string): boolean => {
+    if (line.trim().length === 0) return false;
+    if (chordRegex.test(line)) return false;
+    const lyricRegex = /[a-z]/; // simple check for lyrics
+    if (lyricRegex.test(line)) return false;
+
+    // It's likely a chord line if it doesn't contain bracketed chords or lowercase letters
+    const potentialChords = line.trim().split(/\s+/);
+    const chordPattern = /^[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13)?(\/[A-G](b|#)?)?$/;
+    return potentialChords.every(pc => chordPattern.test(pc));
+};
+
+
 const renderLyrics = (text: string) => {
-  return text.split('\n').map((line, lineIndex) => (
-    <p key={lineIndex} className="mb-2 leading-relaxed">
-      {line.split(/(\[[^\]]+\])/g).map((part, partIndex) => {
-        if (part.startsWith('[') && part.endsWith(']')) {
-          return (
-            <span key={partIndex} className="font-bold text-accent mx-1">
-              {part.slice(1, -1)}
-            </span>
-          );
-        }
-        return <span key={partIndex}>{part}</span>;
-      })}
-    </p>
-  ));
+  return text.split('\n').map((line, lineIndex) => {
+    if (isChordLine(line)) {
+        return (
+            <p key={lineIndex} className="font-bold text-accent leading-relaxed">
+                {line}
+            </p>
+        );
+    }
+    return (
+        <p key={lineIndex} className="mb-4 leading-relaxed">
+        {line.split(/(\[[^\]]+\])/g).map((part, partIndex) => {
+            if (part.startsWith('[') && part.endsWith(']')) {
+            return (
+                <span key={partIndex} className="font-bold text-accent mx-1">
+                {part.slice(1, -1)}
+                </span>
+            );
+            }
+            return <span key={partIndex}>{part}</span>;
+        })}
+        </p>
+    );
+  });
 };
 
 export function SongView({ song, setlistId, onBack }: SongViewProps) {
@@ -80,13 +104,16 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
       <Button variant="ghost" onClick={onBack} className="mb-4">
         <ArrowLeft className="mr-2 h-4 w-4" /> Back to Setlist
       </Button>
-      <div className="mb-6">
-        <h1 className="text-5xl font-bold font-headline">{song.title}</h1>
-        <p className="text-xl text-muted-foreground">{song.artist}</p>
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-5xl font-bold font-headline">{song.title}</h1>
+          <p className="text-xl text-muted-foreground">{song.artist}</p>
+        </div>
+        <SongEditor setlistId={setlistId} song={song} />
       </div>
       
       <Card className="mb-6">
-        <CardContent className="p-4 text-lg font-mono whitespace-pre-wrap">
+        <CardContent className="p-6 text-lg font-mono whitespace-pre-wrap">
           {renderLyrics(transposedLyrics)}
         </CardContent>
       </Card>
@@ -101,7 +128,6 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
           </div>
 
           <div className="flex items-center gap-2 col-span-2 md:col-span-1 justify-center">
-            <SongEditor setlistId={setlistId} song={song} />
             <Button size="icon" className="w-16 h-16 rounded-full bg-accent text-accent-foreground hover:bg-accent/90" onClick={toggleScroll}>
               {isScrolling ? <Pause className="w-8 h-8"/> : <Play className="w-8 h-8"/>}
             </Button>
