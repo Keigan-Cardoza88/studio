@@ -82,7 +82,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
             if (scrollRef.current) cancelAnimationFrame(scrollRef.current);
             return;
         }
-        const scrollAmount = (song.scrollSpeed / 100) * 1.5;
+        const scrollAmount = (song.scrollSpeed / 100) * 0.5;
         scrollAreaRef.current.scrollTop += scrollAmount;
         scrollRef.current = requestAnimationFrame(scrollStep);
     }
