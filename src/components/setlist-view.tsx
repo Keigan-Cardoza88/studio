@@ -1,3 +1,4 @@
+
 "use client";
 
 import React from 'react';
@@ -16,7 +17,7 @@ export function SetlistView({ setlist }: SetlistViewProps) {
   const { setActiveSongId, deleteSong } = useAppContext();
 
   return (
-    <div className="mt-[5px]">
+    <div className="mt-10">
       <div className="flex justify-between items-center mb-6">
         <div>
           <h1 className="text-4xl font-bold font-headline">{setlist.name}</h1>
