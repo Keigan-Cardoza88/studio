@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -22,13 +23,10 @@ const chordRegex = /\[([^\]]+)\]/;
 const isChordLine = (line: string): boolean => {
     if (line.trim().length === 0) return false;
     
-    // A line with bracketed chords is not a chord-only line in this context
     if (chordRegex.test(line)) return false;
 
-    // A line with obvious lyric characters is not a chord line
     const lyricRegex = /[a-z]/; 
     if (lyricRegex.test(line.toLowerCase())) {
-        // Exception: words like 'minor', 'major', 'sus', 'add' are ok if they are part of chord names
         const nonChordWords = line.toLowerCase().replace(/(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13)/g, '').trim();
         if (/[a-z]/.test(nonChordWords)) {
             return false;
@@ -36,7 +34,6 @@ const isChordLine = (line: string): boolean => {
     }
 
     const potentialChords = line.trim().split(/\s+/);
-    // This pattern is simplified, and might not catch all complex chords, but covers most common cases.
     const chordPattern = /^[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13)?(\/[A-G](b|#)?)?$/i;
     return potentialChords.every(pc => chordPattern.test(pc));
 };
@@ -71,6 +68,7 @@ const renderLyrics = (text: string) => {
 export function SongView({ song, setlistId, onBack }: SongViewProps) {
   const { updateSong } = useAppContext();
   const [isScrolling, setIsScrolling] = useState(false);
+  const [scrollSpeed, setScrollSpeed] = useState(song.scrollSpeed || 20);
   const scrollRef = useRef<number | null>(null);
   const scrollAreaRef = useRef<HTMLDivElement>(null);
 
@@ -82,22 +80,14 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
             if (scrollRef.current) cancelAnimationFrame(scrollRef.current);
             return;
         }
-        // Speed is pixels per second.
-        const speed = song.scrollSpeed / 10;
-        const scrollAmount = speed / 60; // Assuming 60fps
-        scrollAreaRef.current.scrollTop += scrollAmount;
+        const speed = scrollSpeed / 50; 
+        scrollAreaRef.current.scrollTop += speed;
         scrollRef.current = requestAnimationFrame(scrollStep);
     }
-  }, [song.scrollSpeed]);
+  }, [scrollSpeed]);
 
   const toggleScroll = () => {
-    if (isScrolling) {
-      setIsScrolling(false);
-      if (scrollRef.current) cancelAnimationFrame(scrollRef.current);
-    } else {
-      setIsScrolling(true);
-      scrollRef.current = requestAnimationFrame(scrollStep);
-    }
+    setIsScrolling(prev => !prev);
   };
   
   useEffect(() => {
@@ -113,10 +103,8 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
     };
   }, [isScrolling, scrollStep]);
   
-  // Stop scrolling if song changes
   useEffect(() => {
       setIsScrolling(false);
-      if (scrollRef.current) cancelAnimationFrame(scrollRef.current);
       if (scrollAreaRef.current) scrollAreaRef.current.scrollTop = 0;
   }, [song.id]);
 
@@ -126,7 +114,9 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   };
 
   const handleScrollSpeedChange = (value: number[]) => {
-    updateSong(setlistId, song.id, { scrollSpeed: value[0] });
+    const newSpeed = value[0];
+    setScrollSpeed(newSpeed);
+    updateSong(setlistId, song.id, { scrollSpeed: newSpeed });
   };
   
   const transposedLyrics = transpose(song.lyricsWithChords, song.transpose);
@@ -139,21 +129,21 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
             </Button>
             <div className="flex justify-between items-center mb-6">
                 <div>
-                <h1 className="text-5xl font-bold font-headline">{song.title}</h1>
-                <p className="text-xl text-muted-foreground">{song.artist}</p>
+                <h1 className="text-4xl font-bold font-headline">{song.title}</h1>
+                <p className="text-lg text-muted-foreground">{song.artist}</p>
                 </div>
                 <SongEditor setlistId={setlistId} song={song} />
             </div>
         </header>
       
         <main className="flex-grow mb-2 overflow-hidden">
-            <ScrollArea className="h-full" viewportRef={scrollAreaRef}>
-                <Card className="mb-6">
-                    <CardContent className="p-6 text-lg font-mono whitespace-pre-wrap">
+            <Card className="h-full flex flex-col">
+                <ScrollArea className="flex-grow" viewportRef={scrollAreaRef}>
+                    <CardContent className="p-6 text-xl font-mono whitespace-pre-wrap">
                         {renderLyrics(transposedLyrics)}
                     </CardContent>
-                </Card>
-            </ScrollArea>
+                </ScrollArea>
+            </Card>
         </main>
 
         <footer className="flex-shrink-0 bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-4 md:px-8 z-10">
@@ -175,7 +165,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
             <div className="flex items-center gap-2 col-span-2 md:col-span-1">
                 <Rewind className="hidden md:block" />
                 <Slider
-                value={[song.scrollSpeed]}
+                value={[scrollSpeed]}
                 onValueChange={handleScrollSpeedChange}
                 max={100}
                 step={1}
@@ -187,3 +177,4 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
     </div>
   );
 }
+
