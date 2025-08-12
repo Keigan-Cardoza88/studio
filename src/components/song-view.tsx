@@ -10,6 +10,7 @@ import { ArrowLeft, Minus, Plus, Play, Pause } from 'lucide-react';
 import { SongEditor } from './song-editor';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Slider } from '@/components/ui/slider';
 
 interface SongViewProps {
   song: Song;
@@ -66,7 +67,6 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   const [isScrolling, setIsScrolling] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(song.scrollSpeed || 20);
   const scrollRef = useRef<number | null>(null);
-  const scrollAreaRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
 
   const scrollStep = useCallback(() => {
@@ -110,10 +110,10 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
     updateSong(setlistId, song.id, { transpose: song.transpose + amount });
   };
   
-  const handleScrollSpeedChange = (amount: number) => {
-    const newSpeed = Math.max(0, Math.min(100, scrollSpeed + amount));
-    setScrollSpeed(newSpeed);
-    updateSong(setlistId, song.id, { scrollSpeed: newSpeed });
+  const handleScrollSpeedChange = (newSpeed: number[]) => {
+    const speedValue = newSpeed[0];
+    setScrollSpeed(speedValue);
+    updateSong(setlistId, song.id, { scrollSpeed: speedValue });
   };
   
   const transposedLyrics = transpose(song.lyricsWithChords, song.transpose);
@@ -135,7 +135,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
       
         <main className="flex-grow mb-2 overflow-hidden">
             <Card className="h-full flex flex-col">
-                <ScrollArea className="flex-grow" ref={scrollAreaRef} viewportRef={viewportRef}>
+                <ScrollArea className="flex-grow" viewportRef={viewportRef}>
                     <CardContent className="p-6 text-xl font-mono whitespace-pre-wrap">
                         {renderLyrics(transposedLyrics)}
                     </CardContent>
@@ -160,12 +160,18 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
                 
                 <div className="flex items-center gap-2 justify-end">
                     <h3 className="text-sm font-semibold hidden md:block">Speed</h3>
-                    <Button variant="outline" size="icon" onClick={() => handleScrollSpeedChange(-5)}><Minus/></Button>
+                    <Slider
+                        defaultValue={[scrollSpeed]}
+                        max={100}
+                        step={1}
+                        onValueChange={handleScrollSpeedChange}
+                        className="w-[120px]"
+                    />
                     <span className="font-bold text-lg w-12 text-center">{scrollSpeed}</span>
-                    <Button variant="outline" size="icon" onClick={() => handleScrollSpeedChange(5)}><Plus/></Button>
                 </div>
             </div>
         </footer>
     </div>
   );
 }
+
