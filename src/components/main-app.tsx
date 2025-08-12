@@ -18,8 +18,8 @@ export function MainApp() {
     <SidebarProvider>
       <SetlistSidebar />
       <SidebarInset>
-        <div className="absolute top-2 left-2">
-          <SidebarTrigger className="md:hidden" />
+        <div className="absolute top-2 left-2 z-20">
+          <SidebarTrigger />
         </div>
         <div className="p-4 md:p-8 min-h-screen">
           {!activeSetlist && !activeSong && <WelcomeView />}

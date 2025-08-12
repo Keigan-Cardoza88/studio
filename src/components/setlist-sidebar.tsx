@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { useAppContext } from '@/contexts/app-provider';
-import { Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarTrigger } from '@/components/ui/sidebar';
+import { Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
@@ -32,9 +32,6 @@ export function SetlistSidebar() {
         <div className="flex items-center gap-2">
             <Music className="w-8 h-8 text-accent" />
             <h1 className="text-2xl font-headline font-bold">ReadySetPlay</h1>
-            <div className="ml-auto">
-              <SidebarTrigger />
-            </div>
         </div>
       </SidebarHeader>
       <SidebarContent>
