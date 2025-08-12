@@ -68,21 +68,41 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   const [scrollSpeed, setScrollSpeed] = useState(song.scrollSpeed || 20);
   const scrollRef = useRef<number | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const lastScrollTimeRef = useRef<number>(0);
+  const scrollAccumulatorRef = useRef<number>(0);
 
-  const scrollStep = useCallback(() => {
-    if (viewportRef.current) {
+  const scrollStep = useCallback((timestamp: number) => {
+    if (!viewportRef.current) return;
+    
+    if (lastScrollTimeRef.current > 0) {
+      const deltaTime = timestamp - lastScrollTimeRef.current;
+      const minPixelsPerSecond = 5;
+      const maxPixelsPerSecond = 200;
+      
+      const speedRange = maxPixelsPerSecond - minPixelsPerSecond;
+      const pixelsPerSecond = minPixelsPerSecond + (speedRange * (scrollSpeed - 1)) / 99;
+      
+      const pixelsToScroll = (pixelsPerSecond * deltaTime) / 1000;
+      scrollAccumulatorRef.current += pixelsToScroll;
+
+      const scrollAmount = Math.floor(scrollAccumulatorRef.current);
+
+      if (scrollAmount > 0) {
         const { scrollTop, scrollHeight, clientHeight } = viewportRef.current;
         if (scrollTop < scrollHeight - clientHeight) {
-            // A speed of 1 is slow, 100 is fast.
-            // This formula provides a range from 0.1 pixels/frame to 10 pixels/frame.
-            const speed = (scrollSpeed / 100) * 1;
-            viewportRef.current.scrollTop += speed;
-            scrollRef.current = requestAnimationFrame(scrollStep);
+          viewportRef.current.scrollTop += scrollAmount;
+          scrollAccumulatorRef.current -= scrollAmount;
         } else {
-            setIsScrolling(false);
-            if(scrollRef.current) cancelAnimationFrame(scrollRef.current);
+          setIsScrolling(false);
+          if (scrollRef.current) cancelAnimationFrame(scrollRef.current);
+          return;
         }
+      }
     }
+    
+    lastScrollTimeRef.current = timestamp;
+    scrollRef.current = requestAnimationFrame(scrollStep);
+
   }, [scrollSpeed]);
 
   const toggleScroll = () => {
@@ -91,6 +111,8 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
 
   useEffect(() => {
     if (isScrolling) {
+      lastScrollTimeRef.current = 0;
+      scrollAccumulatorRef.current = 0;
       scrollRef.current = requestAnimationFrame(scrollStep);
     } else {
       if (scrollRef.current) {
@@ -164,6 +186,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
                     <h3 className="text-sm font-semibold hidden md:block">Speed</h3>
                     <Slider
                         defaultValue={[scrollSpeed]}
+                        min={1}
                         max={100}
                         step={1}
                         onValueChange={handleScrollSpeedChange}
