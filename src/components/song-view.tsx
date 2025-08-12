@@ -39,13 +39,13 @@ const renderLyrics = (text: string) => {
   return text.split('\n').map((line, lineIndex) => {
     if (isChordLine(line)) {
         return (
-            <p key={lineIndex} className="font-bold text-accent leading-relaxed">
+            <p key={lineIndex} className="font-bold text-accent leading-normal">
                 {line}
             </p>
         );
     }
     return (
-        <p key={lineIndex} className="mb-4 leading-relaxed">
+        <p key={lineIndex} className="mb-1 leading-normal">
         {line.split(/(\[[^\]]+\])/g).map((part, partIndex) => {
             if (part.startsWith('[') && part.endsWith(']')) {
             return (
@@ -71,14 +71,16 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
 
   const scrollStep = useCallback(() => {
     if (!viewportRef.current || !isScrolling) return;
-
-    const minIncrement = 0.02; 
-    const maxIncrement = 2; 
-
-    // The accumulator ensures that even fractional increments contribute to scrolling over time.
-    const speed = minIncrement + ((maxIncrement - minIncrement) * (scrollSpeed - 1)) / 99;
-    scrollAccumulatorRef.current += speed;
-
+  
+    // This formula creates a smoother, more controllable curve.
+    // The base speed ensures it moves even at the lowest setting.
+    // The exponent makes the slider feel more responsive at higher speeds.
+    const baseSpeed = 0.005; 
+    const speedMultiplier = (scrollSpeed / 100) ** 2;
+    const increment = baseSpeed + speedMultiplier * 0.5;
+  
+    scrollAccumulatorRef.current += increment;
+  
     const scrollAmount = Math.floor(scrollAccumulatorRef.current);
     
     if (scrollAmount >= 1) {
@@ -131,31 +133,31 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   const transposedLyrics = transpose(song.lyricsWithChords, song.transpose);
 
   return (
-    <div className="h-screen flex flex-col">
-        <header className="flex-shrink-0 p-2">
-            <Button variant="ghost" onClick={onBack} className="mb-2">
+    <div className="h-screen flex flex-col p-1">
+        <header className="flex-shrink-0">
+            <Button variant="ghost" onClick={onBack} className="mb-1">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Setlist
             </Button>
-            <div className="flex justify-between items-center mb-2">
+            <div className="flex justify-between items-center mb-1 px-1">
                 <div>
-                <h1 className="text-4xl font-bold font-headline">{song.title}</h1>
-                <p className="text-lg text-muted-foreground">{song.artist}</p>
+                <h1 className="text-xl font-bold font-headline">{song.title}</h1>
+                <p className="text-base text-muted-foreground">{song.artist}</p>
                 </div>
                 <SongEditor setlistId={setlistId} song={song} />
             </div>
         </header>
 
-        <main className="flex-grow overflow-hidden">
+        <main className="flex-grow overflow-hidden pt-0">
             <Card className="h-full flex flex-col">
                 <ScrollArea className="flex-grow" viewportRef={viewportRef}>
-                    <CardContent className="p-4 text-xl font-mono whitespace-pre-wrap">
+                    <CardContent className="p-2 text-base font-mono whitespace-pre-wrap">
                         {renderLyrics(transposedLyrics)}
                     </CardContent>
                 </ScrollArea>
             </Card>
         </main>
 
-        <footer className="flex-shrink-0 bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-2 md:px-4 z-10">
+        <footer className="flex-shrink-0 bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-2 z-10">
             <div className="max-w-4xl mx-auto grid grid-cols-3 gap-4 items-center">
                 <div className="flex items-center gap-2">
                     <h3 className="text-sm font-semibold hidden md:block">Key</h3>
