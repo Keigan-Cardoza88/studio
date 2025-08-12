@@ -68,42 +68,35 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   const [scrollSpeed, setScrollSpeed] = useState(song.scrollSpeed || 20);
   const scrollRef = useRef<number | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const lastScrollTimeRef = useRef<number>(0);
   const scrollAccumulatorRef = useRef<number>(0);
 
-  const scrollStep = useCallback((timestamp: number) => {
+  const scrollStep = useCallback(() => {
     if (!viewportRef.current) return;
     
-    if (lastScrollTimeRef.current > 0) {
-      const deltaTime = timestamp - lastScrollTimeRef.current;
-      const minPixelsPerSecond = 5;
-      const maxPixelsPerSecond = 200;
-      
-      const speedRange = maxPixelsPerSecond - minPixelsPerSecond;
-      const pixelsPerSecond = minPixelsPerSecond + (speedRange * (scrollSpeed - 1)) / 99;
-      
-      const pixelsToScroll = (pixelsPerSecond * deltaTime) / 1000;
-      scrollAccumulatorRef.current += pixelsToScroll;
+    const minPixelsPerFrame = 0.1;
+    const maxPixelsPerFrame = 10;
+    
+    // Scale the scroll speed non-linearly to have more control at lower speeds
+    const speed = minPixelsPerFrame + ((maxPixelsPerFrame - minPixelsPerFrame) * (scrollSpeed / 100));
+    
+    scrollAccumulatorRef.current += speed;
 
-      const scrollAmount = Math.floor(scrollAccumulatorRef.current);
+    const scrollAmount = Math.floor(scrollAccumulatorRef.current);
 
-      if (scrollAmount > 0) {
-        const { scrollTop, scrollHeight, clientHeight } = viewportRef.current;
-        if (scrollTop < scrollHeight - clientHeight) {
-          viewportRef.current.scrollTop += scrollAmount;
-          scrollAccumulatorRef.current -= scrollAmount;
-        } else {
-          setIsScrolling(false);
-          if (scrollRef.current) cancelAnimationFrame(scrollRef.current);
-          return;
-        }
+    if (scrollAmount > 0) {
+      const { scrollTop, scrollHeight, clientHeight } = viewportRef.current;
+      if (scrollTop < scrollHeight - clientHeight) {
+        viewportRef.current.scrollTop += scrollAmount;
+        scrollAccumulatorRef.current -= scrollAmount;
+      } else {
+        setIsScrolling(false);
       }
     }
     
-    lastScrollTimeRef.current = timestamp;
-    scrollRef.current = requestAnimationFrame(scrollStep);
-
-  }, [scrollSpeed]);
+    if (isScrolling) {
+        scrollRef.current = requestAnimationFrame(scrollStep);
+    }
+  }, [scrollSpeed, isScrolling]);
 
   const toggleScroll = () => {
     setIsScrolling(prev => !prev);
@@ -111,7 +104,6 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
 
   useEffect(() => {
     if (isScrolling) {
-      lastScrollTimeRef.current = 0;
       scrollAccumulatorRef.current = 0;
       scrollRef.current = requestAnimationFrame(scrollStep);
     } else {
@@ -190,7 +182,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
                         max={100}
                         step={1}
                         onValueChange={handleScrollSpeedChange}
-                        className="w-[120px]"
+                        className="w-[240px]"
                     />
                     <span className="font-bold text-lg w-12 text-center">{scrollSpeed}</span>
                 </div>
