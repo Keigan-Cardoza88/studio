@@ -77,12 +77,14 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   const scrollStep = useCallback(() => {
     if (scrollAreaRef.current) {
         const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current;
-        if (scrollTop + clientHeight >= scrollHeight - 1) { // Added a small buffer
+        if (scrollTop + clientHeight >= scrollHeight) {
             setIsScrolling(false);
             if (scrollRef.current) cancelAnimationFrame(scrollRef.current);
             return;
         }
-        const scrollAmount = (song.scrollSpeed / 100) * 0.75;
+        // Speed is pixels per second.
+        const speed = song.scrollSpeed / 10;
+        const scrollAmount = speed / 60; // Assuming 60fps
         scrollAreaRef.current.scrollTop += scrollAmount;
         scrollRef.current = requestAnimationFrame(scrollStep);
     }
@@ -99,11 +101,17 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   };
   
   useEffect(() => {
-    // Stop scrolling when component unmounts
+    if (isScrolling) {
+      scrollRef.current = requestAnimationFrame(scrollStep);
+    } else {
+      if (scrollRef.current) {
+        cancelAnimationFrame(scrollRef.current);
+      }
+    }
     return () => {
       if (scrollRef.current) cancelAnimationFrame(scrollRef.current);
     };
-  }, []);
+  }, [isScrolling, scrollStep]);
   
   // Stop scrolling if song changes
   useEffect(() => {

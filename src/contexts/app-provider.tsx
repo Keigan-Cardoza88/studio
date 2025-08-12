@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import React, { createContext, useContext, useState, ReactNode, useEffect, useCallback } from 'react';
 import type { Setlist, Song } from '@/lib/types';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
@@ -11,11 +11,13 @@ interface AppContextType {
   deleteSetlist: (setlistId: string) => void;
   activeSetlist: Setlist | null;
   setActiveSetlistId: (id: string | null) => void;
+  activeSetlistId: string | null;
   addSong: (setlistId: string, song: Omit<Song, 'id' | 'transpose' | 'scrollSpeed'>) => void;
   updateSong: (setlistId: string, songId: string, updatedSong: Partial<Song>) => void;
   deleteSong: (setlistId: string, songId: string) => void;
   activeSong: Song | null;
   setActiveSongId: (id: string | null) => void;
+  activeSongId: string | null;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -31,6 +33,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     setIsClient(true);
   }, []);
+  
+  const handleSetActiveSetlistId = useCallback((id: string | null) => {
+    setActiveSetlistId(id);
+    setActiveSongId(null);
+  }, []);
 
   const addSetlist = (name: string) => {
     const newSetlist: Setlist = {
@@ -38,18 +45,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
       name,
       songs: [],
     };
-    setSetlists([...setlists, newSetlist]);
+    setSetlists(prev => [...prev, newSetlist]);
   };
 
   const updateSetlist = (setlistId: string, updatedSetlist: Partial<Setlist>) => {
-    setSetlists(setlists.map(s => s.id === setlistId ? { ...s, ...updatedSetlist } : s));
+    setSetlists(prev => prev.map(s => s.id === setlistId ? { ...s, ...updatedSetlist } : s));
   };
   
   const deleteSetlist = (setlistId: string) => {
-    setSetlists(setlists.filter(s => s.id !== setlistId));
+    setSetlists(prev => prev.filter(s => s.id !== setlistId));
     if (activeSetlistId === setlistId) {
-      setActiveSetlistId(null);
-      setActiveSongId(null);
+      handleSetActiveSetlistId(null);
     }
   };
 
@@ -60,28 +66,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
       transpose: 0,
       scrollSpeed: 20,
     };
-    const updatedSetlists = setlists.map(s => {
+    setSetlists(prev => prev.map(s => {
       if (s.id === setlistId) {
         return { ...s, songs: [...s.songs, newSong] };
       }
       return s;
-    });
-    setSetlists(updatedSetlists);
+    }));
   };
 
   const updateSong = (setlistId: string, songId: string, updatedSong: Partial<Song>) => {
-    const updatedSetlists = setlists.map(s => {
+    setSetlists(prev => prev.map(s => {
       if (s.id === setlistId) {
         const songs = s.songs.map(song => song.id === songId ? { ...song, ...updatedSong } : song);
         return { ...s, songs };
       }
       return s;
-    });
-    setSetlists(updatedSetlists);
+    }));
   };
   
   const deleteSong = (setlistId: string, songId: string) => {
-    setSetlists(setlists.map(s => {
+    setSetlists(prev => prev.map(s => {
       if (s.id === setlistId) {
         return { ...s, songs: s.songs.filter(song => song.id !== songId) };
       }
@@ -95,21 +99,25 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const activeSetlist = isClient ? setlists.find(s => s.id === activeSetlistId) || null : null;
   const activeSong = isClient ? activeSetlist?.songs.find(s => s.id === activeSongId) || null : null;
 
+  if (!isClient) {
+    // Render null on the server to avoid hydration mismatch
+    return null;
+  }
+
   const value = {
-    setlists: isClient ? setlists : [],
+    setlists,
     addSetlist,
     updateSetlist,
     deleteSetlist,
     activeSetlist,
-    setActiveSetlistId: (id: string | null) => {
-      setActiveSetlistId(id);
-      setActiveSongId(null);
-    },
+    setActiveSetlistId: handleSetActiveSetlistId,
+    activeSetlistId,
     addSong,
     updateSong,
     deleteSong,
     activeSong,
     setActiveSongId,
+    activeSongId,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
