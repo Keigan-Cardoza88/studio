@@ -82,7 +82,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
             if (scrollRef.current) cancelAnimationFrame(scrollRef.current);
             return;
         }
-        const scrollAmount = (song.scrollSpeed / 100) * 0.5;
+        const scrollAmount = (song.scrollSpeed / 100) * 0.75;
         scrollAreaRef.current.scrollTop += scrollAmount;
         scrollRef.current = requestAnimationFrame(scrollStep);
     }
@@ -125,7 +125,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
 
   return (
     <div className="h-screen flex flex-col">
-        <div className="flex-shrink-0 pt-4 px-4">
+        <header className="flex-shrink-0 pt-4 px-4">
             <Button variant="ghost" onClick={onBack} className="mb-4">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Setlist
             </Button>
@@ -136,17 +136,19 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
                 </div>
                 <SongEditor setlistId={setlistId} song={song} />
             </div>
-        </div>
+        </header>
       
-        <ScrollArea className="flex-grow mb-2" viewportRef={scrollAreaRef}>
-            <Card className="mb-6">
-                <CardContent className="p-6 text-lg font-mono whitespace-pre-wrap">
-                    {renderLyrics(transposedLyrics)}
-                </CardContent>
-            </Card>
-        </ScrollArea>
+        <main className="flex-grow mb-2 overflow-hidden">
+            <ScrollArea className="h-full" viewportRef={scrollAreaRef}>
+                <Card className="mb-6">
+                    <CardContent className="p-6 text-lg font-mono whitespace-pre-wrap">
+                        {renderLyrics(transposedLyrics)}
+                    </CardContent>
+                </Card>
+            </ScrollArea>
+        </main>
 
-        <div className="flex-shrink-0 bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-4 md:px-8 z-10">
+        <footer className="flex-shrink-0 bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-4 md:px-8 z-10">
             <div className="max-w-4xl mx-auto grid grid-cols-2 md:grid-cols-3 gap-4 items-center">
             <div className="flex items-center gap-2">
                 <h3 className="text-sm font-semibold hidden md:block">Key</h3>
@@ -173,7 +175,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
                 <FastForward className="hidden md:block" />
             </div>
             </div>
-        </div>
+        </footer>
     </div>
   );
 }
