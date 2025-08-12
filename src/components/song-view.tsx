@@ -72,21 +72,21 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   const scrollStep = useCallback(() => {
     if (viewportRef.current) {
         const { scrollTop, scrollHeight, clientHeight } = viewportRef.current;
-        if (scrollTop + clientHeight >= scrollHeight) {
+        if (scrollTop < scrollHeight - clientHeight) {
+            const speed = (scrollSpeed / 100) * 0.5 + 0.1;
+            viewportRef.current.scrollTop += speed;
+            scrollRef.current = requestAnimationFrame(scrollStep);
+        } else {
             setIsScrolling(false);
-            if (scrollRef.current) cancelAnimationFrame(scrollRef.current);
-            return;
+            if(scrollRef.current) cancelAnimationFrame(scrollRef.current);
         }
-        const speed = (scrollSpeed / 100) * 0.5 + 0.1;
-        viewportRef.current.scrollTop += speed;
-        scrollRef.current = requestAnimationFrame(scrollStep);
     }
   }, [scrollSpeed]);
-  
+
   const toggleScroll = () => {
     setIsScrolling(prev => !prev);
   };
-  
+
   useEffect(() => {
     if (isScrolling) {
       scrollRef.current = requestAnimationFrame(scrollStep);
@@ -99,7 +99,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
       if (scrollRef.current) cancelAnimationFrame(scrollRef.current);
     };
   }, [isScrolling, scrollStep]);
-  
+
   useEffect(() => {
       setIsScrolling(false);
       if (viewportRef.current) viewportRef.current.scrollTop = 0;
@@ -109,13 +109,13 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   const handleTranspose = (amount: number) => {
     updateSong(setlistId, song.id, { transpose: song.transpose + amount });
   };
-  
+
   const handleScrollSpeedChange = (newSpeed: number[]) => {
     const speedValue = newSpeed[0];
     setScrollSpeed(speedValue);
     updateSong(setlistId, song.id, { scrollSpeed: speedValue });
   };
-  
+
   const transposedLyrics = transpose(song.lyricsWithChords, song.transpose);
 
   return (
@@ -132,7 +132,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
                 <SongEditor setlistId={setlistId} song={song} />
             </div>
         </header>
-      
+
         <main className="flex-grow mb-2 overflow-hidden">
             <Card className="h-full flex flex-col">
                 <ScrollArea className="flex-grow" viewportRef={viewportRef}>
@@ -157,7 +157,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
                     {isScrolling ? <Pause className="w-8 h-8"/> : <Play className="w-8 h-8"/>}
                     </Button>
                 </div>
-                
+
                 <div className="flex items-center gap-2 justify-end">
                     <h3 className="text-sm font-semibold hidden md:block">Speed</h3>
                     <Slider
@@ -174,4 +174,3 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
     </div>
   );
 }
-
