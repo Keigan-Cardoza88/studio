@@ -1,4 +1,3 @@
-
 "use client";
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -68,36 +67,33 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
   const [scrollSpeed, setScrollSpeed] = useState(song.scrollSpeed || 20);
   const scrollRef = useRef<number | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
-  const scrollAccumulatorRef = useRef<number>(0);
+  const scrollAccumulatorRef = useRef(0);
 
   const scrollStep = useCallback(() => {
-    if (!viewportRef.current) return;
-    
-    // Scale scroll speed: 1-100 -> 0.05 to 5 pixels per frame for slower scrolling.
-    const minPixelsPerFrame = 0.05;
-    const maxPixelsPerFrame = 5;
-    
-    const speed = minPixelsPerFrame + ((maxPixelsPerFrame - minPixelsPerFrame) * ((scrollSpeed - 1) / 99));
-    
+    if (!viewportRef.current || !isScrolling) return;
+
+    const minIncrement = 0.02; 
+    const maxIncrement = 2; 
+
+    // The accumulator ensures that even fractional increments contribute to scrolling over time.
+    const speed = minIncrement + ((maxIncrement - minIncrement) * (scrollSpeed - 1)) / 99;
     scrollAccumulatorRef.current += speed;
 
     const scrollAmount = Math.floor(scrollAccumulatorRef.current);
-
-    if (scrollAmount > 0) {
-      const { scrollTop, scrollHeight, clientHeight } = viewportRef.current;
-      if (scrollTop < scrollHeight - clientHeight) {
-        viewportRef.current.scrollTop += scrollAmount;
-        scrollAccumulatorRef.current -= scrollAmount;
-      } else {
-        setIsScrolling(false);
-      }
+    
+    if (scrollAmount >= 1) {
+        const { scrollTop, scrollHeight, clientHeight } = viewportRef.current;
+        if (scrollTop < scrollHeight - clientHeight) {
+            viewportRef.current.scrollTop += scrollAmount;
+            scrollAccumulatorRef.current -= scrollAmount;
+        } else {
+            setIsScrolling(false);
+        }
     }
     
-    if (isScrolling) {
-        scrollRef.current = requestAnimationFrame(scrollStep);
-    }
+    scrollRef.current = requestAnimationFrame(scrollStep);
   }, [scrollSpeed, isScrolling]);
-
+  
   const toggleScroll = () => {
     setIsScrolling(prev => !prev);
   };
@@ -136,11 +132,11 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
 
   return (
     <div className="h-screen flex flex-col">
-        <header className="flex-shrink-0 pt-4 px-4">
-            <Button variant="ghost" onClick={onBack} className="mb-4">
+        <header className="flex-shrink-0 p-2">
+            <Button variant="ghost" onClick={onBack} className="mb-2">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Setlist
             </Button>
-            <div className="flex justify-between items-center mb-6">
+            <div className="flex justify-between items-center mb-2">
                 <div>
                 <h1 className="text-4xl font-bold font-headline">{song.title}</h1>
                 <p className="text-lg text-muted-foreground">{song.artist}</p>
@@ -149,17 +145,17 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
             </div>
         </header>
 
-        <main className="flex-grow mb-2 overflow-hidden">
+        <main className="flex-grow overflow-hidden">
             <Card className="h-full flex flex-col">
                 <ScrollArea className="flex-grow" viewportRef={viewportRef}>
-                    <CardContent className="p-6 text-xl font-mono whitespace-pre-wrap">
+                    <CardContent className="p-4 text-xl font-mono whitespace-pre-wrap">
                         {renderLyrics(transposedLyrics)}
                     </CardContent>
                 </ScrollArea>
             </Card>
         </main>
 
-        <footer className="flex-shrink-0 bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-4 md:px-8 z-10">
+        <footer className="flex-shrink-0 bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-2 md:px-4 z-10">
             <div className="max-w-4xl mx-auto grid grid-cols-3 gap-4 items-center">
                 <div className="flex items-center gap-2">
                     <h3 className="text-sm font-semibold hidden md:block">Key</h3>
@@ -182,7 +178,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
                         max={100}
                         step={1}
                         onValueChange={handleScrollSpeedChange}
-                        className="w-[240px]"
+                        className="w-[340px]"
                     />
                     <span className="font-bold text-lg w-12 text-center">{scrollSpeed}</span>
                 </div>

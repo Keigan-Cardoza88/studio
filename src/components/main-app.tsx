@@ -21,7 +21,7 @@ export function MainApp() {
         <div className="absolute top-2 left-2 z-20">
           <SidebarTrigger />
         </div>
-        <div className="p-4 md:p-8 min-h-screen">
+        <div className="p-2 md:p-4 min-h-screen">
           {!activeSetlist && !activeSong && <WelcomeView />}
           {activeSetlist && !activeSong && <SetlistView setlist={activeSetlist} />}
           {activeSetlist && activeSong && <SongView setlistId={activeSetlist.id} song={activeSong} onBack={handleBackToSetlist} />}
