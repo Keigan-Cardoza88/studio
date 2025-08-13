@@ -124,29 +124,35 @@ export function SetlistSidebar() {
                 files: [`data:application/json;base64,${base64Data}`],
                 dialogTitle: 'Share Setlists'
             });
-        } else if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+        } else if (navigator.share) {
             // Fallback to Web Share API
-            await navigator.share({
-                files: [fileToShare],
-                title: 'Exported Setlists',
-                text: `Setlists from ${activeWorkbook?.name}`,
-            });
+            if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+              await navigator.share({
+                  files: [fileToShare],
+                  title: 'Exported Setlists',
+                  text: `Setlists from ${activeWorkbook?.name}`,
+              });
+            } else {
+              await navigator.share({
+                  title: 'Exported Setlists',
+                  text: `Setlists from ${activeWorkbook?.name}`,
+                  url: finalFilename, // Provide a URL/filename as text
+              });
+            }
         } else {
             // Fallback for desktop browsers or unsupported environments
-            const link = document.createElement('a');
-            link.href = URL.createObjectURL(dataBlob);
-            link.download = finalFilename;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(link.href);
+            toast({
+                title: "Share Not Supported",
+                description: "This feature is not supported on your device. Use a mobile device for sharing.",
+                variant: "destructive"
+            });
         }
     } catch (error) {
         // Avoid showing error for user-cancelled share action
         if ((error as DOMException)?.name !== 'AbortError' && !(error as any).message?.includes('canceled')) {
             toast({
                 title: "Share Failed",
-                description: "Could not share the file. This feature may not be supported on your device.",
+                description: "Could not share the file. Please try again.",
                 variant: "destructive"
             });
         }
