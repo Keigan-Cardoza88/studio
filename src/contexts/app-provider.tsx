@@ -117,7 +117,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return w;
     });
 
-    setSetlists(finalWorkbooks);
+    setWorkbooks(finalWorkbooks);
     if(activeSetlistId === setlistId) {
         setActiveSetlistId(null);
     }
