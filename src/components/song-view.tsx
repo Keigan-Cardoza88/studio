@@ -14,6 +14,7 @@ import { Slider } from '@/components/ui/slider';
 
 interface SongViewProps {
   song: Song;
+  workbookId: string;
   setlistId: string;
   onBack: () => void;
 }
@@ -62,7 +63,7 @@ const renderLyrics = (text: string) => {
   });
 };
 
-export function SongView({ song, setlistId, onBack }: SongViewProps) {
+export function SongView({ song, workbookId, setlistId, onBack }: SongViewProps) {
   const { updateSong } = useAppContext();
   const [isScrolling, setIsScrolling] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(song.scrollSpeed || 20);
@@ -118,13 +119,13 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
 
 
   const handleTranspose = (amount: number) => {
-    updateSong(setlistId, song.id, { transpose: song.transpose + amount });
+    updateSong(workbookId, setlistId, song.id, { transpose: song.transpose + amount });
   };
 
   const handleScrollSpeedChange = (newSpeed: number[]) => {
     const speedValue = newSpeed[0];
     setScrollSpeed(speedValue);
-    updateSong(setlistId, song.id, { scrollSpeed: speedValue });
+    updateSong(workbookId, setlistId, song.id, { scrollSpeed: speedValue });
   };
 
   const transposedLyrics = transpose(song.lyricsWithChords, song.transpose);
@@ -140,7 +141,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
                 <h1 className="text-lg font-bold font-headline">{song.title}</h1>
                 <p className="text-sm text-muted-foreground">{song.artist}</p>
                 </div>
-                <SongEditor setlistId={setlistId} song={song} />
+                <SongEditor workbookId={workbookId} setlistId={setlistId} song={song} />
             </div>
         </header>
 

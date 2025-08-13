@@ -10,7 +10,7 @@ import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/s
 import { Skeleton } from '@/components/ui/skeleton';
 
 export function MainApp() {
-  const { activeSetlist, activeSong, setActiveSongId, isLoading } = useAppContext();
+  const { activeWorkbook, activeSetlist, activeSong, setActiveSongId, isLoading } = useAppContext();
 
   const handleBackToSetlist = () => {
     setActiveSongId(null);
@@ -41,8 +41,8 @@ export function MainApp() {
         </div>
         <div className="p-2 md:p-4 min-h-screen">
           {!activeSetlist && !activeSong && <WelcomeView />}
-          {activeSetlist && !activeSong && <SetlistView setlist={activeSetlist} />}
-          {activeSetlist && activeSong && <SongView setlistId={activeSetlist.id} song={activeSong} onBack={handleBackToSetlist} />}
+          {activeWorkbook && activeSetlist && !activeSong && <SetlistView workbookId={activeWorkbook.id} setlist={activeSetlist} />}
+          {activeWorkbook && activeSetlist && activeSong && <SongView workbookId={activeWorkbook.id} setlistId={activeSetlist.id} song={activeSong} onBack={handleBackToSetlist} />}
         </div>
       </SidebarInset>
     </SidebarProvider>

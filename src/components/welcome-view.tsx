@@ -1,3 +1,4 @@
+
 "use client";
 
 import { Music } from 'lucide-react';
@@ -11,7 +12,7 @@ export function WelcomeView() {
         Your ultimate setlist manager.
       </p>
       <p className="text-muted-foreground mt-4">
-        Select a setlist from the sidebar or create a new one to get started.
+        Select a workbook and setlist from the sidebar, or create a new one to get started.
       </p>
     </div>
   );

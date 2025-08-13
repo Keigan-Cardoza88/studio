@@ -11,10 +11,11 @@ import { SongEditor } from './song-editor';
 import { cn } from '@/lib/utils';
 
 interface SetlistViewProps {
+  workbookId: string;
   setlist: Setlist;
 }
 
-export function SetlistView({ setlist }: SetlistViewProps) {
+export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   const { setActiveSongId, deleteSong, reorderSongs } = useAppContext();
   const [songs, setSongs] = useState<Song[]>(setlist.songs);
   const dragItem = useRef<number | null>(null);
@@ -40,7 +41,7 @@ export function SetlistView({ setlist }: SetlistViewProps) {
   };
   
   const handleDragEnd = () => {
-    reorderSongs(setlist.id, songs);
+    reorderSongs(workbookId, setlist.id, songs);
     dragItem.current = null;
     dragOverItem.current = null;
   };
@@ -52,7 +53,7 @@ export function SetlistView({ setlist }: SetlistViewProps) {
           <h1 className="text-4xl font-bold font-headline">{setlist.name}</h1>
           <p className="text-muted-foreground">{setlist.songs.length} songs</p>
         </div>
-        <SongEditor setlistId={setlist.id} />
+        <SongEditor workbookId={workbookId} setlistId={setlist.id} />
       </div>
       <div className="space-y-2">
         {songs.length > 0 ? (
@@ -77,7 +78,7 @@ export function SetlistView({ setlist }: SetlistViewProps) {
                       <p className="text-sm text-muted-foreground">{song.artist}</p>
                     </div>
                   </div>
-                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteSong(setlist.id, song.id) }}>
+                  <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteSong(workbookId, setlist.id, song.id) }}>
                     <Trash2 className="h-4 w-4 text-destructive" />
                   </Button>
                 </CardContent>

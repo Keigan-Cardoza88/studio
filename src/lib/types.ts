@@ -12,3 +12,9 @@ export interface Setlist {
   name: string;
   songs: Song[];
 }
+
+export interface Workbook {
+  id: string;
+  name: string;
+  setlists: Setlist[];
+}

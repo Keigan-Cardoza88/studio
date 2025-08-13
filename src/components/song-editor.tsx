@@ -1,3 +1,4 @@
+
 "use client";
 
 import React, { useEffect, useState } from 'react';
@@ -11,6 +12,7 @@ import { useForm, SubmitHandler } from 'react-hook-form';
 import { Edit, PlusCircle } from 'lucide-react';
 
 interface SongEditorProps {
+  workbookId: string;
   setlistId: string;
   song?: Song;
 }
@@ -21,7 +23,7 @@ type Inputs = {
   lyricsWithChords: string;
 };
 
-export function SongEditor({ setlistId, song }: SongEditorProps) {
+export function SongEditor({ workbookId, setlistId, song }: SongEditorProps) {
   const { addSong, updateSong } = useAppContext();
   const [isOpen, setIsOpen] = useState(false);
   const { register, handleSubmit, reset, setValue } = useForm<Inputs>();
@@ -40,9 +42,9 @@ export function SongEditor({ setlistId, song }: SongEditorProps) {
 
   const onSubmit: SubmitHandler<Inputs> = (data) => {
     if (song) {
-      updateSong(setlistId, song.id, data);
+      updateSong(workbookId, setlistId, song.id, data);
     } else {
-      addSong(setlistId, data);
+      addSong(workbookId, setlistId, data);
     }
     reset();
     setIsOpen(false);
