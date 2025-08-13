@@ -11,6 +11,9 @@ const getNoteIndex = (note: string): number => {
 };
 
 const transposeNote = (note: string, semitones: number): string => {
+    // Return empty strings or pure whitespace as is.
+    if (!note.trim()) return note;
+
     const noteRootMatch = note.match(/^[A-G](b|#)?/);
     if (!noteRootMatch) return note;
 
@@ -45,7 +48,7 @@ const isChordLine = (line: string): boolean => {
     // A line is a chord line if all non-whitespace parts look like chords.
     const potentialChords = trimmedLine.split(/\s+/);
     // This pattern is simplified and may not catch all complex chords, but covers the basics.
-    const chordPattern = /^[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/Maj7|m\/maj7)?(\/[A-G](b|#)?)?$/i;
+    const chordPattern = /^[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7)?(\/[A-G](b|#)?)?$/i;
     
     return potentialChords.every(pc => chordPattern.test(pc));
 };
@@ -56,12 +59,12 @@ export const transpose = (lyricsWithChords: string, semitones: number): string =
     
     return lyricsWithChords.split('\n').map(line => {
         if (isChordLine(line)) {
-            // This is a chord-only line, so we transpose each chord.
-            return line.split(/\s+/).map(chord => transposeNote(chord, semitones)).join(' ');
+            // Replace each sequence of non-whitespace characters (a chord)
+            // with its transposed version, preserving original spacing.
+            return line.replace(/\S+/g, chord => transposeNote(chord, semitones));
         }
         
         // This is a lyric line or a line with bracketed chords, return as is.
         return line;
     }).join('\n');
 };
-
