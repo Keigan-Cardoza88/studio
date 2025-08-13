@@ -21,6 +21,7 @@ interface AppContextType {
   setActiveSongId: (id: string | null) => void;
   activeSongId: string | null;
   importSetlists: (importedSetlists: Setlist[]) => void;
+  reorderSongs: (setlistId: string, songs: Song[]) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -117,6 +118,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     });
   };
 
+  const reorderSongs = (setlistId: string, songs: Song[]) => {
+    setSetlists(prev => prev.map(s => {
+      if (s.id === setlistId) {
+        return { ...s, songs: songs };
+      }
+      return s;
+    }));
+  };
 
   const activeSetlist = isClient ? setlists.find(s => s.id === activeSetlistId) || null : null;
   const activeSong = isClient ? activeSetlist?.songs.find(s => s.id === activeSongId) || null : null;
@@ -141,6 +150,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setActiveSongId,
     activeSongId,
     importSetlists,
+    reorderSongs,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
