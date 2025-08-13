@@ -22,6 +22,7 @@ interface AppContextType {
   activeSongId: string | null;
   importSetlists: (importedSetlists: Setlist[]) => void;
   reorderSongs: (setlistId: string, songs: Song[]) => void;
+  isLoading: boolean;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -30,19 +31,21 @@ const defaultSetlists: Setlist[] = [];
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const [setlists, setSetlists] = useLocalStorage<Setlist[]>('setlists', defaultSetlists);
-  const [activeSetlistId, setActiveSetlistId] = useState<string | null>(null);
-  const [activeSongId, setActiveSongId] = useState<string | null>(null);
-  const [isClient, setIsClient] = useState(false);
+  const [activeSetlistId, setActiveSetlistId] = useLocalStorage<string | null>('activeSetlistId', null);
+  const [activeSongId, setActiveSongId] = useLocalStorage<string | null>('activeSongId', null);
+  const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
   useEffect(() => {
-    setIsClient(true);
+    // When the component mounts, the useLocalStorage hook will have read the initial value.
+    // We can now safely set isLoading to false.
+    setIsLoading(false);
   }, []);
   
   const handleSetActiveSetlistId = useCallback((id: string | null) => {
     setActiveSetlistId(id);
     setActiveSongId(null);
-  }, []);
+  }, [setActiveSetlistId, setActiveSongId]);
 
   const addSetlist = (name: string) => {
     const newSetlist: Setlist = {
@@ -127,13 +130,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const activeSetlist = isClient ? setlists.find(s => s.id === activeSetlistId) || null : null;
-  const activeSong = isClient ? activeSetlist?.songs.find(s => s.id === activeSongId) || null : null;
-
-  if (!isClient) {
-    // Render null on the server to avoid hydration mismatch
-    return null;
-  }
+  const activeSetlist = isLoading ? null : setlists.find(s => s.id === activeSetlistId) || null;
+  const activeSong = isLoading ? null : activeSetlist?.songs.find(s => s.id === activeSongId) || null;
 
   const value = {
     setlists,
@@ -151,6 +149,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     activeSongId,
     importSetlists,
     reorderSongs,
+    isLoading,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

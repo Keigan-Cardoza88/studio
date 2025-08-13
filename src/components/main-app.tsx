@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useAppContext } from '@/contexts/app-provider';
@@ -6,12 +7,29 @@ import { WelcomeView } from './welcome-view';
 import { SetlistView } from './setlist-view';
 import { SongView } from './song-view';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function MainApp() {
-  const { activeSetlist, activeSong, setActiveSongId } = useAppContext();
+  const { activeSetlist, activeSong, setActiveSongId, isLoading } = useAppContext();
 
   const handleBackToSetlist = () => {
     setActiveSongId(null);
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="w-full max-w-md p-4 space-y-4">
+          <Skeleton className="h-12 w-full" />
+          <Skeleton className="h-8 w-3/4" />
+          <div className="space-y-2 pt-4">
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+            <Skeleton className="h-16 w-full" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
