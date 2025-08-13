@@ -73,26 +73,20 @@ export function SetlistSidebar() {
       } catch (error) {
         // This can happen if the user cancels the share dialog
         console.info('Share was cancelled or failed', error);
-        toast({
-          title: "Share Cancelled",
-          description: "The share operation was cancelled.",
-          variant: "destructive"
-        });
+        if ((error as DOMException)?.name !== 'AbortError') {
+            toast({
+            title: "Share Failed",
+            description: "An unexpected error occurred during sharing.",
+            variant: "destructive"
+            });
+        }
       }
     } else {
-      // Fallback to direct download
-      const url = URL.createObjectURL(dataBlob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = finalFilename;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-      toast({
-        title: "Export Successful",
-        description: "Your setlists have been saved to your downloads folder.",
-      });
+        toast({
+            title: "Feature Not Supported",
+            description: "Sharing is not supported on this device or browser.",
+            variant: "destructive",
+        });
     }
 
     setIsExportOpen(false);
