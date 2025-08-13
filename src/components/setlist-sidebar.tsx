@@ -1,7 +1,7 @@
 
 "use client";
 
-import React, { useState, useRef } from 'react';
+import React from 'react';
 import { useAppContext } from '@/contexts/app-provider';
 import { Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -15,7 +15,7 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import type { Setlist, Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Capacitor } from '@capacitor/core';
-import { Directory, Encoding } from '@capacitor/filesystem';
+import type { Directory, Encoding } from '@capacitor/filesystem';
 
 
 type Inputs = {
@@ -44,17 +44,17 @@ const blobToBase64 = (blob: Blob): Promise<string> => {
 
 export function SetlistSidebar() {
   const { workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook, activeWorkbook, setActiveWorkbookId, addSetlist, activeSetlistId, setActiveSetlistId, deleteSetlist, importSetlists, activeWorkbookId } = useAppContext();
-  const [isNewSetlistOpen, setIsNewSetlistOpen] = useState(false);
-  const [isNewWorkbookOpen, setIsNewWorkbookOpen] = useState(false);
-  const [isImportOpen, setIsImportOpen] = useState(false);
-  const [workbookToImportTo, setWorkbookToImportTo] = useState<string | null>(null);
-  const [isExportOpen, setIsExportOpen] = useState(false);
-  const [exportFilename, setExportFilename] = useState('readysetplay_setlists.rsp');
-  const [editingWorkbookId, setEditingWorkbookId] = useState<string | null>(null);
-  const [editingWorkbookName, setEditingWorkbookName] = useState("");
+  const [isNewSetlistOpen, setIsNewSetlistOpen] = React.useState(false);
+  const [isNewWorkbookOpen, setIsNewWorkbookOpen] = React.useState(false);
+  const [isImportOpen, setIsImportOpen] = React.useState(false);
+  const [workbookToImportTo, setWorkbookToImportTo] = React.useState<string | null>(null);
+  const [isExportOpen, setIsExportOpen] = React.useState(false);
+  const [exportFilename, setExportFilename] = React.useState('readysetplay_setlists.rsp');
+  const [editingWorkbookId, setEditingWorkbookId] = React.useState<string | null>(null);
+  const [editingWorkbookName, setEditingWorkbookName] = React.useState("");
 
   const { register, handleSubmit, reset } = useForm<Inputs>();
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const onNewSetlistSubmit: SubmitHandler<Inputs> = (data) => {
@@ -117,7 +117,7 @@ export function SetlistSidebar() {
     try {
       if (Capacitor.isNativePlatform()) {
         const { Share } = await import('@capacitor/share');
-        const { Filesystem } = await import('@capacitor/filesystem');
+        const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
         
         const base64Data = await blobToBase64(dataBlob);
 
@@ -422,3 +422,5 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
+
+    
