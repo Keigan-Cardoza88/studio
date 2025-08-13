@@ -184,7 +184,7 @@ export function SetlistSidebar() {
             {workbooks.map((workbook) => (
               <AccordionItem value={workbook.id} key={workbook.id} className="border-none">
                 <div className="flex items-center group/workbook">
-                  <AccordionTrigger className="flex-grow hover:no-underline rounded-md px-2 hover:bg-accent/10">
+                  <AccordionTrigger className="flex-grow hover:no-underline rounded-md px-2 hover:bg-accent/10 py-2">
                     <div className="flex items-center gap-2 w-full min-w-0">
                        <Folder className="h-4 w-4 shrink-0 text-accent" /> 
                        {editingWorkbookId === workbook.id ? (
