@@ -40,7 +40,7 @@ export function SetlistSidebar() {
     deleteSetlist(setlistId);
   }
 
-  const handleExportSetlists = () => {
+  const handleExportSetlists = async () => {
     if (setlists.length === 0) {
       toast({
         title: "Nothing to Export",
@@ -49,21 +49,52 @@ export function SetlistSidebar() {
       });
       return;
     }
-    const finalFilename = exportFilename.trim().endsWith('.rsp') ? exportFilename.trim() : `${exportFilename.trim()}.rsp`;
+
+    const finalFilename = exportFilename.trim().endsWith('.rsp') 
+        ? exportFilename.trim() 
+        : `${exportFilename.trim()}.rsp`;
+
     const dataStr = JSON.stringify(setlists, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = finalFilename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-     toast({
-      title: "Export Successful",
-      description: "Your setlists have been saved.",
-    });
+    const fileToShare = new File([dataBlob], finalFilename, { type: 'application/json' });
+
+    // Use Web Share API if available
+    if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+      try {
+        await navigator.share({
+          files: [fileToShare],
+          title: 'Exported Setlists',
+          text: `Here are the setlists from ReadySetPlay: ${finalFilename}`,
+        });
+        toast({
+          title: "Share initiated",
+          description: "Your setlists are ready to be shared.",
+        });
+      } catch (error) {
+        // This can happen if the user cancels the share dialog
+        console.info('Share was cancelled or failed', error);
+        toast({
+          title: "Share Cancelled",
+          description: "The share operation was cancelled.",
+          variant: "destructive"
+        });
+      }
+    } else {
+      // Fallback to direct download
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = finalFilename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast({
+        title: "Export Successful",
+        description: "Your setlists have been saved to your downloads folder.",
+      });
+    }
+
     setIsExportOpen(false);
   };
 
@@ -222,7 +253,7 @@ export function SetlistSidebar() {
                   <DialogClose asChild>
                     <Button type="button" variant="secondary">Cancel</Button>
                   </DialogClose>
-                  <Button onClick={handleExportSetlists}>Save</Button>
+                  <Button onClick={handleExportSetlists}>Save & Export</Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
