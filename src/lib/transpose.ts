@@ -26,43 +26,36 @@ const transposeNote = (note: string, semitones: number): string => {
 };
 
 const isChordLine = (line: string): boolean => {
+    // A line is a chord line if it doesn't contain bracketed annotations
+    if (/\[.*?\]/.test(line)) return false;
+
     if (line.trim().length === 0) return false;
-    // Regex to match common chord patterns. This can be improved for more complex chords.
-    // It looks for chords like C, G, Am, F, C/G, Dm7, Gsus4
-    const chordRegex = /\b[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7)?(\d)?(\/[A-G](b|#)?)?\b/g;
-    const nonChordChars = line.replace(chordRegex, '').replace(/\s/g, '');
+
+    // This pattern is simplified and may not catch all complex chords, but covers the basics.
+    const chordPattern = /^[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13)?(\/[A-G](b|#)?)?$/i;
     
-    // If after removing chords and whitespace, there's nothing left, it's likely a chord line.
-    // This is a heuristic and might not be perfect for all cases.
-    return nonChordChars.length === 0;
+    // Check if every non-whitespace part of the line is a valid chord.
+    const potentialChords = line.trim().split(/\s+/);
+    return potentialChords.every(pc => chordPattern.test(pc));
 };
+
 
 export const transpose = (lyricsWithChords: string, semitones: number): string => {
     if (semitones === 0) return lyricsWithChords;
     
-    const lines = lyricsWithChords.split('\n');
-    const transposedLines = lines.map(line => {
-        // Transpose chords within brackets
-        let transposedLine = line.replace(/\[([^\]]+)\]/g, (match, chord) => {
-            const transposedChords = chord.split(' ').map(c => transposeNote(c, semitones)).join(' ');
-            return `[${transposedChords}]`;
-        });
-
-        // Check if the line is a chord-only line and transpose it.
-        // This is done on the line that has already processed bracketed chords
-        // to avoid double-transposing if a line has both.
-        if (isChordLine(transposedLine.replace(/\[([^\]]+)\]/g, ''))) {
-            const chords = transposedLine.split(/(\s+)/);
-            return chords.map(chord => {
-                if (/\S/.test(chord)) { // check if it's not just whitespace
-                    return transposeNote(chord, semitones);
+    return lyricsWithChords.split('\n').map(line => {
+        // If the line is determined to be a chord line (and does not contain brackets), transpose it.
+        if (isChordLine(line)) {
+            return line.split(/(\s+)/).map(part => {
+                // Transpose only the parts that are actual chords, leave whitespace intact.
+                if (part.trim().length > 0) {
+                    return transposeNote(part, semitones);
                 }
-                return chord;
+                return part;
             }).join('');
         }
-
-        return transposedLine;
-    });
-
-    return transposedLines.join('\n');
+        
+        // If it's not a chord line (e.g., it contains lyrics or bracketed annotations), return it as is.
+        return line;
+    }).join('\n');
 };
