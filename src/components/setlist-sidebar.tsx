@@ -14,10 +14,30 @@ import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Tras
 import { useForm, SubmitHandler } from "react-hook-form";
 import type { Setlist, Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { Share } from '@capacitor/share';
 
 type Inputs = {
   name: string;
 };
+
+// Helper to convert blob to base64
+const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onerror = reject;
+        reader.onload = () => {
+            if (typeof reader.result === 'string') {
+                // The result is a data URL, we only need the base64 part
+                const base64 = reader.result.split(',')[1];
+                resolve(base64);
+            } else {
+                reject(new Error("Failed to read blob as base64 string."));
+            }
+        };
+        reader.readAsDataURL(blob);
+    });
+};
+
 
 export function SetlistSidebar() {
   const { workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook, activeWorkbook, setActiveWorkbookId, addSetlist, activeSetlistId, setActiveSetlistId, deleteSetlist, importSetlists, activeWorkbookId } = useAppContext();
@@ -76,12 +96,12 @@ export function SetlistSidebar() {
   const handleExportSetlists = async () => {
     const setlistsToExport = activeWorkbook?.setlists || [];
     if (setlistsToExport.length === 0) {
-      toast({
-        title: "Nothing to Export",
-        description: "This workbook has no setlists to export.",
-        variant: "destructive",
-      });
-      return;
+        toast({
+            title: "Nothing to Export",
+            description: "This workbook has no setlists to export.",
+            variant: "destructive",
+        });
+        return;
     }
 
     const finalFilename = exportFilename.trim().endsWith('.rsp') 
@@ -92,17 +112,46 @@ export function SetlistSidebar() {
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const fileToShare = new File([dataBlob], finalFilename, { type: 'application/json' });
 
-    if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
-      try {
-        await navigator.share({ files: [fileToShare], title: 'Exported Setlists' });
-      } catch (error) {
-        if ((error as DOMException)?.name !== 'AbortError') {
-            toast({ title: "Share Failed", variant: "destructive" });
+    try {
+        const canCapacitorShare = await Share.canShare();
+        
+        if (canCapacitorShare.value) {
+            // Use Capacitor Share API when available
+            const base64Data = await blobToBase64(dataBlob);
+            await Share.share({
+                title: 'Exported Setlists',
+                text: `Setlists from ${activeWorkbook?.name}`,
+                files: [`data:application/json;base64,${base64Data}`],
+                dialogTitle: 'Share Setlists'
+            });
+        } else if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+            // Fallback to Web Share API
+            await navigator.share({
+                files: [fileToShare],
+                title: 'Exported Setlists',
+                text: `Setlists from ${activeWorkbook?.name}`,
+            });
+        } else {
+            // Fallback for desktop browsers or unsupported environments
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(dataBlob);
+            link.download = finalFilename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(link.href);
         }
-      }
-    } else {
-        toast({ title: "Feature Not Supported", description: "Sharing is not supported on this device.", variant: "destructive" });
+    } catch (error) {
+        // Avoid showing error for user-cancelled share action
+        if ((error as DOMException)?.name !== 'AbortError' && !(error as any).message?.includes('canceled')) {
+            toast({
+                title: "Share Failed",
+                description: "Could not share the file. This feature may not be supported on your device.",
+                variant: "destructive"
+            });
+        }
     }
+
     setIsExportOpen(false);
   };
 
@@ -165,7 +214,7 @@ export function SetlistSidebar() {
           <Dialog open={isNewWorkbookOpen} onOpenChange={setIsNewWorkbookOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full justify-start">
-                  <FolderPlus className="mr-2 h-4 w-4" />
+                  <PlusCircle className="mr-2 h-4 w-4" />
                   New Workbook
                 </Button>
               </DialogTrigger>
@@ -359,5 +408,3 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
-
-    
