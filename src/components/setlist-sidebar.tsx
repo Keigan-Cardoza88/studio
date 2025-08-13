@@ -164,7 +164,7 @@ export function SetlistSidebar() {
         <SidebarMenu>
           <Dialog open={isNewWorkbookOpen} onOpenChange={setIsNewWorkbookOpen}>
               <DialogTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start">
+                <Button variant="outline" className="w-full justify-start">
                   <FolderPlus className="mr-2 h-4 w-4" />
                   New Workbook
                 </Button>
@@ -186,7 +186,7 @@ export function SetlistSidebar() {
                 <div className="flex items-center group/workbook">
                   <AccordionTrigger className="flex-grow hover:no-underline rounded-md px-2 hover:bg-accent/10">
                     <div className="flex items-center gap-2 w-full min-w-0">
-                       <Folder className="h-4 w-4 shrink-0 text-orange-400" /> 
+                       <Folder className="h-4 w-4 shrink-0 text-accent" /> 
                        {editingWorkbookId === workbook.id ? (
                           <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
                             <Input 
@@ -199,7 +199,7 @@ export function SetlistSidebar() {
                             />
                           </div>
                        ) : (
-                          <span className="truncate flex-1 text-left text-orange-400">{workbook.name}</span>
+                          <span className="truncate flex-1 text-left text-accent">{workbook.name}</span>
                        )}
                     </div>
                   </AccordionTrigger>
@@ -240,7 +240,7 @@ export function SetlistSidebar() {
                      <SidebarMenuItem>
                       <Dialog open={isNewSetlistOpen} onOpenChange={setIsNewSetlistOpen}>
                         <DialogTrigger asChild>
-                           <Button variant="ghost" size="sm" className="w-full justify-start h-8" disabled={activeWorkbookId !== workbook.id} onClick={() => setActiveWorkbookId(workbook.id)}>
+                           <Button variant="outline" size="sm" className="w-full justify-start h-8" disabled={activeWorkbookId !== workbook.id} onClick={() => setActiveWorkbookId(workbook.id)}>
                               <PlusCircle className="mr-2 h-4 w-4" /> New Setlist
                            </Button>
                         </DialogTrigger>
@@ -259,8 +259,8 @@ export function SetlistSidebar() {
                     {workbook.setlists.map((setlist) => (
                       <SidebarMenuItem key={setlist.id} className="group/item">
                         <SidebarMenuButton isActive={setlist.id === activeSetlistId} onClick={() => { setActiveWorkbookId(workbook.id); setActiveSetlistId(setlist.id);}} className="w-full">
-                           <Book className="h-4 w-4 text-blue-300" />
-                           <span className="truncate flex-grow text-left text-blue-300">{setlist.name}</span>
+                           <Book className="h-4 w-4 text-blue-400" />
+                           <span className="truncate flex-grow text-left text-blue-400">{setlist.name}</span>
                         </SidebarMenuButton>
                         <div className="absolute right-1 top-1/2 -translate-y-1/2 h-7 flex items-center opacity-0 group-hover/item:opacity-100">
                            <DropdownMenu>
