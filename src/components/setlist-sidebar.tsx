@@ -186,7 +186,7 @@ export function SetlistSidebar() {
                 <div className="flex items-center group/workbook">
                   <AccordionTrigger className="flex-grow hover:no-underline rounded-md px-2 hover:bg-accent/10 py-2">
                     <div className="flex items-center gap-2 w-full min-w-0">
-                       <Sheet className="h-4 w-4 shrink-0 text-accent" /> 
+                       <Music className="h-4 w-4 shrink-0 text-accent" /> 
                        {editingWorkbookId === workbook.id ? (
                           <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
                             <Input 
@@ -359,3 +359,5 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
+
+    
