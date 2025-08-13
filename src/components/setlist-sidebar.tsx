@@ -20,6 +20,9 @@ type Inputs = {
 export function SetlistSidebar() {
   const { setlists, addSetlist, activeSetlistId, setActiveSetlistId, deleteSetlist, importSetlists } = useAppContext();
   const [isNewSetlistOpen, setIsNewSetlistOpen] = useState(false);
+  const [isExportOpen, setIsExportOpen] = useState(false);
+  const [exportFilename, setExportFilename] = useState('readysetplay_setlists.rsp');
+
   const { register, handleSubmit, reset } = useForm<Inputs>();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
@@ -46,12 +49,13 @@ export function SetlistSidebar() {
       });
       return;
     }
+    const finalFilename = exportFilename.trim().endsWith('.rsp') ? exportFilename.trim() : `${exportFilename.trim()}.rsp`;
     const dataStr = JSON.stringify(setlists, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
     const url = URL.createObjectURL(dataBlob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `readysetplay_setlists.rsp`;
+    link.download = finalFilename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -60,6 +64,7 @@ export function SetlistSidebar() {
       title: "Export Successful",
       description: "Your setlists have been saved.",
     });
+    setIsExportOpen(false);
   };
 
   const handleImportClick = () => {
@@ -192,10 +197,35 @@ export function SetlistSidebar() {
           />
         </SidebarMenuItem>
         <SidebarMenuItem>
-          <Button variant="ghost" className="w-full justify-start" onClick={handleExportSetlists}>
-            <Download className="mr-2 h-4 w-4" />
-            Export All
-          </Button>
+           <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" className="w-full justify-start" onClick={() => setIsExportOpen(true)}>
+                  <Download className="mr-2 h-4 w-4" />
+                  Export All
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Export Setlists</DialogTitle>
+                </DialogHeader>
+                <div className="py-4">
+                  <label htmlFor="filename" className="text-sm font-medium text-muted-foreground">Filename</label>
+                  <Input 
+                    id="filename" 
+                    value={exportFilename}
+                    onChange={(e) => setExportFilename(e.target.value)}
+                    placeholder="e.g., my_setlists.rsp"
+                    className="mt-2"
+                  />
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild>
+                    <Button type="button" variant="secondary">Cancel</Button>
+                  </DialogClose>
+                  <Button onClick={handleExportSetlists}>Save</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
         </SidebarMenuItem>
       </SidebarMenu>
     </Sidebar>
