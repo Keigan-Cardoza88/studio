@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Book, ChevronsUpDown, Folder, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Upload, Download, FilePenLine } from 'lucide-react';
+import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Upload, Download, FilePenLine, Sheet } from 'lucide-react';
 import { useForm, SubmitHandler } from "react-hook-form";
 import type { Setlist, Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -186,7 +186,7 @@ export function SetlistSidebar() {
                 <div className="flex items-center group/workbook">
                   <AccordionTrigger className="flex-grow hover:no-underline rounded-md px-2 hover:bg-accent/10 py-2">
                     <div className="flex items-center gap-2 w-full min-w-0">
-                       <Folder className="h-4 w-4 shrink-0 text-accent" /> 
+                       <Sheet className="h-4 w-4 shrink-0 text-accent" /> 
                        {editingWorkbookId === workbook.id ? (
                           <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
                             <Input 
