@@ -85,9 +85,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast({ title: "Cannot delete the last workbook", variant: "destructive" });
       return;
     }
-    setWorkbooks(prev => prev.filter(w => w.id !== workbookId));
+    const updatedWorkbooks = workbooks.filter(w => w.id !== workbookId);
+    setWorkbooks(updatedWorkbooks);
     if (activeWorkbookId === workbookId) {
-      handleSetActiveWorkbookId(workbooks[0]?.id || null);
+      // Use the updatedWorkbooks array to find the new active workbook
+      handleSetActiveWorkbookId(updatedWorkbooks[0]?.id || null);
     }
   };
 
