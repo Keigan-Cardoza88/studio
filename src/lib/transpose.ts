@@ -26,18 +26,42 @@ const transposeNote = (note: string, semitones: number): string => {
     return notesSharp[newIndex] + rest;
 };
 
+
+const isChordLine = (line: string): boolean => {
+    const trimmedLine = line.trim();
+    if (trimmedLine.length === 0) return false;
+
+    // Ignore lines with lyrics in brackets
+    if (trimmedLine.includes('[') || trimmedLine.includes(']')) {
+        return false;
+    }
+
+    // Ignore structural markers like "Verse", "Chorus", "Intro", "Outro", etc.
+    const structuralMarkers = /^(verse|chorus|intro|outro|bridge|pre-chorus|interlude|solo|instrumental)/i;
+    if (structuralMarkers.test(trimmedLine)) {
+        return false;
+    }
+
+    // A line is a chord line if all non-whitespace parts look like chords.
+    const potentialChords = trimmedLine.split(/\s+/);
+    // This pattern is simplified and may not catch all complex chords, but covers the basics.
+    const chordPattern = /^[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/Maj7|m\/maj7)?(\/[A-G](b|#)?)?$/i;
+    
+    return potentialChords.every(pc => chordPattern.test(pc));
+};
+
+
 export const transpose = (lyricsWithChords: string, semitones: number): string => {
     if (semitones === 0) return lyricsWithChords;
     
-    const chordRegex = /\[([^\]]+)\]/g;
-
     return lyricsWithChords.split('\n').map(line => {
-        // This will find all bracketed chords like [Am], [G], [C#m7] etc.
-        return line.replace(chordRegex, (match, chord) => {
-            // match is the full thing e.g. "[Am]"
-            // chord is the content inside the brackets e.g. "Am"
-            const transposedChord = transposeNote(chord, semitones);
-            return `[${transposedChord}]`;
-        });
+        if (isChordLine(line)) {
+            // This is a chord-only line, so we transpose each chord.
+            return line.split(/\s+/).map(chord => transposeNote(chord, semitones)).join(' ');
+        }
+        
+        // This is a lyric line or a line with bracketed chords, return as is.
+        return line;
     }).join('\n');
 };
+
