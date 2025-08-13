@@ -154,7 +154,7 @@ export function SongView({ song, setlistId, onBack }: SongViewProps) {
             </Card>
         </main>
 
-        <footer className="flex-shrink-0 bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-2 z-10">
+        <footer className="flex-shrink-0 bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-2 z-10 mb-3">
             <div className="max-w-4xl mx-auto grid grid-cols-3 gap-2 items-center">
                 <div className="flex items-center gap-1">
                     <h3 className="text-xs font-semibold hidden md:block">Key</h3>
