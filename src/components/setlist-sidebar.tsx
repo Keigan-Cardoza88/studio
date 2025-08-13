@@ -15,22 +15,26 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import type { Setlist, Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Capacitor } from '@capacitor/core';
+import { Directory, Encoding } from '@capacitor/filesystem';
 
 
 type Inputs = {
   name: string;
 };
 
-// Helper to convert blob to base64 data URL
-const blobToDataUrl = (blob: Blob): Promise<string> => {
+// Helper to convert blob to base64 data string
+const blobToBase64 = (blob: Blob): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onerror = reject;
     reader.onload = () => {
-      if (typeof reader.result === 'string') {
-        resolve(reader.result);
+      // The result includes the data URI prefix, so we need to remove it.
+      const dataUrl = reader.result as string;
+      const base64 = dataUrl.split(',', 2)[1];
+      if (base64) {
+        resolve(base64);
       } else {
-        reject(new Error("Failed to read blob as a data URL."));
+        reject(new Error("Failed to convert blob to Base64."));
       }
     };
     reader.readAsDataURL(blob);
@@ -113,13 +117,24 @@ export function SetlistSidebar() {
     try {
       if (Capacitor.isNativePlatform()) {
         const { Share } = await import('@capacitor/share');
-        const dataUrl = await blobToDataUrl(dataBlob);
+        const { Filesystem } = await import('@capacitor/filesystem');
+        
+        const base64Data = await blobToBase64(dataBlob);
+
+        const result = await Filesystem.writeFile({
+          path: finalFilename,
+          data: base64Data,
+          directory: Directory.Cache,
+          encoding: Encoding.UTF8
+        });
+
         await Share.share({
           title: 'Exported Setlists',
           text: `Setlists from ${activeWorkbook?.name}`,
           dialogTitle: 'Share Setlists',
-          url: dataUrl,
+          url: result.uri,
         });
+
       } else {
         const fileToShare = new File([dataBlob], finalFilename, { type: 'application/json' });
         if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
@@ -407,5 +422,3 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
-
-    
