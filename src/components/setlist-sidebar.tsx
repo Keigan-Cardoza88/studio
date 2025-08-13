@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Upload, Download, FilePenLine, Sheet } from 'lucide-react';
+import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Upload, Download, FilePenLine } from 'lucide-react';
 import { useForm, SubmitHandler } from "react-hook-form";
 import type { Setlist, Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -21,22 +21,20 @@ type Inputs = {
   name: string;
 };
 
-// Helper to convert blob to base64
-const blobToBase64 = (blob: Blob): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onerror = reject;
-        reader.onload = () => {
-            if (typeof reader.result === 'string') {
-                // The result is a data URL, we only need the base64 part
-                const base64 = reader.result.split(',')[1];
-                resolve(base64);
-            } else {
-                reject(new Error("Failed to read blob as base64 string."));
-            }
-        };
-        reader.readAsDataURL(blob);
-    });
+// Helper to convert blob to base64 data URL
+const blobToDataUrl = (blob: Blob): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        resolve(reader.result);
+      } else {
+        reject(new Error("Failed to read blob as a data URL."));
+      }
+    };
+    reader.readAsDataURL(blob);
+  });
 };
 
 
@@ -111,37 +109,40 @@ export function SetlistSidebar() {
 
     const dataStr = JSON.stringify(setlistsToExport, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const fileToShare = new File([dataBlob], finalFilename, { type: 'application/json' });
 
     try {
       if (Capacitor.isNativePlatform()) {
         const { Share } = await import('@capacitor/share');
+        const dataUrl = await blobToDataUrl(dataBlob);
         await Share.share({
           title: 'Exported Setlists',
           text: `Setlists from ${activeWorkbook?.name}`,
           dialogTitle: 'Share Setlists',
-          files: [fileToShare],
-        });
-      } else if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
-        await navigator.share({
-          files: [fileToShare],
-          title: 'Exported Setlists',
-          text: `Setlists from ${activeWorkbook?.name}`,
+          url: dataUrl,
         });
       } else {
-        // Fallback for desktop browsers: simulate a download
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(dataBlob);
-        link.download = finalFilename;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(link.href);
+        const fileToShare = new File([dataBlob], finalFilename, { type: 'application/json' });
+        if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+          await navigator.share({
+            files: [fileToShare],
+            title: 'Exported Setlists',
+            text: `Setlists from ${activeWorkbook?.name}`,
+          });
+        } else {
+          // Fallback for desktop browsers: simulate a download
+          const link = document.createElement('a');
+          link.href = URL.createObjectURL(dataBlob);
+          link.download = finalFilename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(link.href);
+        }
       }
     } catch (error) {
         // Avoid showing error for user-cancelled share action
         const errorMessage = (error as Error)?.message || '';
-        if ((error as DOMException)?.name !== 'AbortError' && !errorMessage.includes('canceled')) {
+        if ((error as DOMException)?.name !== 'AbortError' && !errorMessage.includes('canceled') && !errorMessage.includes('cancelled')) {
             toast({
                 title: "Share Failed",
                 description: "Could not share the file. Please try again.",
