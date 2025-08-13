@@ -22,7 +22,7 @@ export function SetlistView({ setlist }: SetlistViewProps) {
 
   useEffect(() => {
     setSongs(setlist.songs);
-  }, [setlist.songs]);
+  }, [setlist.songs, setlist.id]);
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
     dragItem.current = index;
