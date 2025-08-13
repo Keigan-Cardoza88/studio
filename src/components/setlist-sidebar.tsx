@@ -185,20 +185,21 @@ export function SetlistSidebar() {
               <AccordionItem value={workbook.id} key={workbook.id} className="border-none">
                 <div className="flex items-center group/workbook">
                   <AccordionTrigger className="flex-grow hover:no-underline rounded-md px-2 hover:bg-accent/10">
-                    <div className="flex items-center gap-2">
-                       <Folder className="h-4 w-4" /> 
+                    <div className="flex items-center gap-2 w-full min-w-0">
+                       <Folder className="h-4 w-4 shrink-0" /> 
                        {editingWorkbookId === workbook.id ? (
-                          <Input 
-                            value={editingWorkbookName}
-                            onChange={(e) => setEditingWorkbookName(e.target.value)}
-                            onBlur={saveWorkbookName}
-                            onKeyDown={(e) => e.key === 'Enter' && saveWorkbookName()}
-                            autoFocus
-                            className="h-7 w-auto"
-                            onClick={(e) => e.stopPropagation()}
-                          />
+                          <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+                            <Input 
+                              value={editingWorkbookName}
+                              onChange={(e) => setEditingWorkbookName(e.target.value)}
+                              onBlur={saveWorkbookName}
+                              onKeyDown={(e) => e.key === 'Enter' && saveWorkbookName()}
+                              autoFocus
+                              className="h-7 w-full"
+                            />
+                          </div>
                        ) : (
-                          <span className="truncate">{workbook.name}</span>
+                          <span className="truncate flex-1 text-left">{workbook.name}</span>
                        )}
                     </div>
                   </AccordionTrigger>
