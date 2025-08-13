@@ -15,7 +15,6 @@ import { useForm, SubmitHandler } from "react-hook-form";
 import type { Setlist, Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { Capacitor } from '@capacitor/core';
-import type { Directory, Encoding } from '@capacitor/filesystem';
 
 
 type Inputs = {
@@ -422,6 +421,3 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
-
-    
-    
