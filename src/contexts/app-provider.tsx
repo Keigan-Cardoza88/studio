@@ -38,8 +38,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // When the component mounts, the useLocalStorage hook will have read the initial value.
-    // We can now safely set isLoading to false.
-    setIsLoading(false);
+    // We add a small delay to ensure all client-side state is settled before rendering the main UI.
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 500);
+
+    return () => clearTimeout(timer);
   }, []);
   
   const handleSetActiveSetlistId = useCallback((id: string | null) => {
