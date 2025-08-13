@@ -14,7 +14,8 @@ import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Tras
 import { useForm, SubmitHandler } from "react-hook-form";
 import type { Setlist, Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Share } from '@capacitor/share';
+import { Capacitor } from '@capacitor/core';
+
 
 type Inputs = {
   name: string;
@@ -113,43 +114,34 @@ export function SetlistSidebar() {
     const fileToShare = new File([dataBlob], finalFilename, { type: 'application/json' });
 
     try {
-        const canCapacitorShare = await Share.canShare();
-        
-        if (canCapacitorShare.value) {
-            // Use Capacitor Share API when available
-            const base64Data = await blobToBase64(dataBlob);
-            await Share.share({
-                title: 'Exported Setlists',
-                text: `Setlists from ${activeWorkbook?.name}`,
-                files: [`data:application/json;base64,${base64Data}`],
-                dialogTitle: 'Share Setlists'
-            });
-        } else if (navigator.share) {
-            // Fallback to Web Share API
-            if (navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
-              await navigator.share({
-                  files: [fileToShare],
-                  title: 'Exported Setlists',
-                  text: `Setlists from ${activeWorkbook?.name}`,
-              });
-            } else {
-              await navigator.share({
-                  title: 'Exported Setlists',
-                  text: `Setlists from ${activeWorkbook?.name}`,
-                  url: finalFilename, // Provide a URL/filename as text
-              });
-            }
-        } else {
-            // Fallback for desktop browsers or unsupported environments
-            toast({
-                title: "Share Not Supported",
-                description: "This feature is not supported on your device. Use a mobile device for sharing.",
-                variant: "destructive"
-            });
-        }
+      if (Capacitor.isNativePlatform()) {
+        const { Share } = await import('@capacitor/share');
+        await Share.share({
+          title: 'Exported Setlists',
+          text: `Setlists from ${activeWorkbook?.name}`,
+          dialogTitle: 'Share Setlists',
+          files: [fileToShare],
+        });
+      } else if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
+        await navigator.share({
+          files: [fileToShare],
+          title: 'Exported Setlists',
+          text: `Setlists from ${activeWorkbook?.name}`,
+        });
+      } else {
+        // Fallback for desktop browsers: simulate a download
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = finalFilename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(link.href);
+      }
     } catch (error) {
         // Avoid showing error for user-cancelled share action
-        if ((error as DOMException)?.name !== 'AbortError' && !(error as any).message?.includes('canceled')) {
+        const errorMessage = (error as Error)?.message || '';
+        if ((error as DOMException)?.name !== 'AbortError' && !errorMessage.includes('canceled')) {
             toast({
                 title: "Share Failed",
                 description: "Could not share the file. Please try again.",
@@ -239,7 +231,7 @@ export function SetlistSidebar() {
             {workbooks.map((workbook) => (
               <AccordionItem value={workbook.id} key={workbook.id} className="border-none">
                 <div className="flex items-center group/workbook">
-                  <AccordionTrigger className="flex-grow hover:no-underline rounded-md px-2 hover:bg-accent/10 py-2">
+                  <AccordionTrigger className="flex-grow hover:no-underline rounded-md px-2 py-2">
                     <div className="flex items-center gap-2 w-full min-w-0">
                        <Music className="h-4 w-4 shrink-0 text-accent" /> 
                        {editingWorkbookId === workbook.id ? (
@@ -414,3 +406,5 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
+
+    
