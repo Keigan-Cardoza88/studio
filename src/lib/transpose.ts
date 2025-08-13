@@ -25,37 +25,18 @@ const transposeNote = (note: string, semitones: number): string => {
     return notesSharp[newIndex] + rest;
 };
 
-const isChordLine = (line: string): boolean => {
-    // A line is a chord line if it doesn't contain bracketed annotations
-    if (/\[.*?\]/.test(line)) return false;
-
-    if (line.trim().length === 0) return false;
-
-    // This pattern is simplified and may not catch all complex chords, but covers the basics.
-    const chordPattern = /^[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13)?(\/[A-G](b|#)?)?$/i;
-    
-    // Check if every non-whitespace part of the line is a valid chord.
-    const potentialChords = line.trim().split(/\s+/);
-    return potentialChords.every(pc => chordPattern.test(pc));
-};
-
-
 export const transpose = (lyricsWithChords: string, semitones: number): string => {
     if (semitones === 0) return lyricsWithChords;
     
+    const chordRegex = /\[([^\]]+)\]/g;
+
     return lyricsWithChords.split('\n').map(line => {
-        // If the line is determined to be a chord line (and does not contain brackets), transpose it.
-        if (isChordLine(line)) {
-            return line.split(/(\s+)/).map(part => {
-                // Transpose only the parts that are actual chords, leave whitespace intact.
-                if (part.trim().length > 0) {
-                    return transposeNote(part, semitones);
-                }
-                return part;
-            }).join('');
-        }
-        
-        // If it's not a chord line (e.g., it contains lyrics or bracketed annotations), return it as is.
-        return line;
+        // This will find all bracketed chords like [Am], [G], [C#m7] etc.
+        return line.replace(chordRegex, (match, chord) => {
+            // match is the full thing e.g. "[Am]"
+            // chord is the content inside the brackets e.g. "Am"
+            const transposedChord = transposeNote(chord, semitones);
+            return `[${transposedChord}]`;
+        });
     }).join('\n');
 };
