@@ -14,32 +14,10 @@ import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Tras
 import { useForm, SubmitHandler } from "react-hook-form";
 import type { Setlist, Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
-import { Capacitor } from '@capacitor/core';
-
 
 type Inputs = {
   name: string;
 };
-
-// Helper to convert blob to base64 data string
-const blobToBase64 = (blob: Blob): Promise<string> => {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = reject;
-    reader.onload = () => {
-      // The result includes the data URI prefix, so we need to remove it.
-      const dataUrl = reader.result as string;
-      const base64 = dataUrl.split(',', 2)[1];
-      if (base64) {
-        resolve(base64);
-      } else {
-        reject(new Error("Failed to convert blob to Base64."));
-      }
-    };
-    reader.readAsDataURL(blob);
-  });
-};
-
 
 export function SetlistSidebar() {
   const { workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook, activeWorkbook, setActiveWorkbookId, addSetlist, activeSetlistId, setActiveSetlistId, deleteSetlist, importSetlists, activeWorkbookId } = useAppContext();
@@ -98,72 +76,29 @@ export function SetlistSidebar() {
   const handleExportSetlists = async () => {
     const setlistsToExport = activeWorkbook?.setlists || [];
     if (setlistsToExport.length === 0) {
-        toast({
-            title: "Nothing to Export",
-            description: "This workbook has no setlists to export.",
-            variant: "destructive",
-        });
-        return;
+      toast({
+        title: "Nothing to Export",
+        description: "This workbook has no setlists to export.",
+        variant: "destructive",
+      });
+      return;
     }
 
-    const finalFilename = exportFilename.trim().endsWith('.rsp') 
-        ? exportFilename.trim() 
-        : `${exportFilename.trim()}.rsp`;
+    const finalFilename = exportFilename.trim().endsWith('.rsp')
+      ? exportFilename.trim()
+      : `${exportFilename.trim()}.rsp`;
 
     const dataStr = JSON.stringify(setlistsToExport, null, 2);
     const dataBlob = new Blob([dataStr], { type: 'application/json' });
-
-    try {
-      if (Capacitor.isNativePlatform()) {
-        const { Share } = await import('@capacitor/share');
-        const { Filesystem, Directory, Encoding } = await import('@capacitor/filesystem');
-        
-        const base64Data = await blobToBase64(dataBlob);
-
-        const result = await Filesystem.writeFile({
-          path: finalFilename,
-          data: base64Data,
-          directory: Directory.Cache,
-          encoding: Encoding.UTF8
-        });
-
-        await Share.share({
-          title: 'Exported Setlists',
-          text: `Setlists from ${activeWorkbook?.name}`,
-          dialogTitle: 'Share Setlists',
-          url: result.uri,
-        });
-
-      } else {
-        const fileToShare = new File([dataBlob], finalFilename, { type: 'application/json' });
-        if (navigator.share && navigator.canShare && navigator.canShare({ files: [fileToShare] })) {
-          await navigator.share({
-            files: [fileToShare],
-            title: 'Exported Setlists',
-            text: `Setlists from ${activeWorkbook?.name}`,
-          });
-        } else {
-          // Fallback for desktop browsers: simulate a download
-          const link = document.createElement('a');
-          link.href = URL.createObjectURL(dataBlob);
-          link.download = finalFilename;
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          URL.revokeObjectURL(link.href);
-        }
-      }
-    } catch (error) {
-        // Avoid showing error for user-cancelled share action
-        const errorMessage = (error as Error)?.message || '';
-        if ((error as DOMException)?.name !== 'AbortError' && !errorMessage.includes('canceled') && !errorMessage.includes('cancelled')) {
-            toast({
-                title: "Share Failed",
-                description: "Could not share the file. Please try again.",
-                variant: "destructive"
-            });
-        }
-    }
+    const url = URL.createObjectURL(dataBlob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = finalFilename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
 
     setIsExportOpen(false);
   };
@@ -421,3 +356,5 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
+
+    
