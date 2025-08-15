@@ -31,16 +31,18 @@ const isChordLine = (line: string): boolean => {
     const trimmedLine = line.trim();
     if (trimmedLine.length === 0) return false;
 
+    // Explicitly ignore lines with brackets, which are for inline chords
     if (trimmedLine.includes('[') || trimmedLine.includes(']')) {
         return false;
     }
     
     const structuralMarkers = /^(verse|chorus|intro|outro|bridge|pre-chorus|interlude|solo|instrumental|v\d*|c\d*)/i;
-    if (structuralMarkers.test(trimmedLine.replace(/\s+/g, ''))) {
+    if (structuralMarkers.test(trimmedLine.replace(/[\s-]/g, ''))) {
         return false;
     }
     
     const potentialChords = trimmedLine.split(/\s+/);
+    // This pattern is simplified and may not catch all complex chords, but covers the basics.
     const chordPattern = /^[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7)?(\/[A-G](b|#)?)?$/i;
     
     return potentialChords.every(pc => chordPattern.test(pc));
@@ -52,13 +54,11 @@ export const transpose = (lyricsWithChords: string, semitones: number): string =
     const chordRegex = /[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7)?(\/[A-G](b|#)?)?/g;
 
     return lyricsWithChords.split('\n').map(line => {
+        // ONLY transpose lines that are identified as exclusively chord lines.
+        // All other lines (lyrics, lyrics with inline chords, structural markers) are returned as-is.
         if (isChordLine(line)) {
             return line.replace(chordRegex, chord => transposeNote(chord, semitones));
         }
-        
-        return line.replace(/\[([^\]]+)\]/g, (match, chord) => {
-            const transposed = transposeNote(chord, semitones);
-            return `[${transposed}]`;
-        });
+        return line;
     }).join('\n');
 };
