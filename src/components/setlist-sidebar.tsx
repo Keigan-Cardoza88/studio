@@ -356,5 +356,3 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
-
-    
