@@ -7,10 +7,11 @@ import { Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, S
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Upload, Download, FilePenLine } from 'lucide-react';
+import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Upload, Share, Clipboard, ClipboardCheck } from 'lucide-react';
 import { useForm, SubmitHandler } from "react-hook-form";
 import type { Setlist, Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -24,14 +25,15 @@ export function SetlistSidebar() {
   const [isNewSetlistOpen, setIsNewSetlistOpen] = React.useState(false);
   const [isNewWorkbookOpen, setIsNewWorkbookOpen] = React.useState(false);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
+  const [importText, setImportText] = React.useState("");
   const [workbookToImportTo, setWorkbookToImportTo] = React.useState<string | null>(null);
-  const [isExportOpen, setIsExportOpen] = React.useState(false);
-  const [exportFilename, setExportFilename] = React.useState('readysetplay_setlists.rsp');
+  const [isShareOpen, setIsShareOpen] = React.useState(false);
   const [editingWorkbookId, setEditingWorkbookId] = React.useState<string | null>(null);
   const [editingWorkbookName, setEditingWorkbookName] = React.useState("");
+  const [hasCopied, setHasCopied] = React.useState(false);
+
 
   const { register, handleSubmit, reset } = useForm<Inputs>();
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
   const onNewSetlistSubmit: SubmitHandler<Inputs> = (data) => {
@@ -73,72 +75,56 @@ export function SetlistSidebar() {
     deleteSetlist(workbookId, setlistId);
   }
 
-  const handleExportSetlists = async () => {
-    const setlistsToExport = activeWorkbook?.setlists || [];
-    if (setlistsToExport.length === 0) {
-      toast({
-        title: "Nothing to Export",
-        description: "This workbook has no setlists to export.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const finalFilename = exportFilename.trim().endsWith('.rsp')
-      ? exportFilename.trim()
-      : `${exportFilename.trim()}.rsp`;
-
-    const dataStr = JSON.stringify(setlistsToExport, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = finalFilename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    setIsExportOpen(false);
-  };
-
   const handleImportClick = () => {
     if (!activeWorkbookId) {
        toast({ title: "No Workbook Selected", description: "Please select a workbook before importing.", variant: "destructive" });
        return;
     }
     setWorkbookToImportTo(activeWorkbookId);
+    setImportText("");
     setIsImportOpen(true);
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file || !workbookToImportTo) return;
+  const handleShareClick = () => {
+     if (!activeWorkbook) {
+       toast({ title: "No Workbook Selected", description: "Please select a workbook to share.", variant: "destructive" });
+       return;
+    }
+    setHasCopied(false);
+    setIsShareOpen(true);
+  }
 
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const text = e.target?.result;
-        if (typeof text !== 'string') throw new Error("File is not valid text.");
-        const importedData = JSON.parse(text);
-        
+  const handleCopyToClipboard = () => {
+    if(!activeWorkbook) return;
+    const textToCopy = JSON.stringify(activeWorkbook.setlists, null, 2);
+    navigator.clipboard.writeText(textToCopy).then(() => {
+        setHasCopied(true);
+        toast({ title: "Copied to clipboard!" });
+        setTimeout(() => setHasCopied(false), 2000);
+    }, () => {
+        toast({ title: "Failed to copy", variant: "destructive" });
+    });
+  }
+
+  const handleImportFromText = () => {
+    if (!workbookToImportTo) {
+        toast({ title: "No destination selected", description: "Please select the workbook to import into.", variant: "destructive"});
+        return;
+    };
+    try {
+        const importedData = JSON.parse(importText);
         if (Array.isArray(importedData) && importedData.every(s => s.id && s.name && Array.isArray(s.songs))) {
           importSetlists(workbookToImportTo, importedData as Setlist[]);
         } else {
-          throw new Error("Invalid .rsp file format.");
+          throw new Error("Invalid data format. Please paste the exact text copied from the share dialog.");
         }
-      } catch (error) {
-        toast({ title: "Import Failed", description: error instanceof Error ? error.message : "An unknown error occurred.", variant: "destructive" });
-      } finally {
-        if(fileInputRef.current) fileInputRef.current.value = '';
         setIsImportOpen(false);
-        setWorkbookToImportTo(null);
-      }
-    };
-    reader.onerror = () => toast({ title: "Import Failed", description: "Could not read the selected file.", variant: "destructive" });
-    reader.readAsText(file);
-  };
+        setImportText("");
+    } catch (error) {
+        toast({ title: "Import Failed", description: error instanceof Error ? error.message : "An unknown error occurred.", variant: "destructive" });
+    }
+  }
+
   
   const handleMoveSetlist = (setlistId: string, fromWorkbookId: string, toWorkbookId: string) => {
     if (fromWorkbookId === toWorkbookId) return;
@@ -162,7 +148,7 @@ export function SetlistSidebar() {
           <Dialog open={isNewWorkbookOpen} onOpenChange={setIsNewWorkbookOpen}>
               <DialogTrigger asChild>
                 <Button variant="outline" className="w-full justify-start">
-                  <PlusCircle className="mr-2 h-4 w-4" />
+                  <FolderPlus className="mr-2 h-4 w-4" />
                   New Workbook
                 </Button>
               </DialogTrigger>
@@ -303,51 +289,73 @@ export function SetlistSidebar() {
         <SidebarMenuItem>
           <Button variant="ghost" className="w-full justify-start" onClick={handleImportClick}>
             <Upload className="mr-2 h-4 w-4" />
-            Import Setlists
+            Import from Text
           </Button>
           <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
-             <DialogContent>
+             <DialogContent className="sm:max-w-xl">
                <DialogHeader>
-                 <DialogTitle>Import to Workbook</DialogTitle>
+                 <DialogTitle>Import Setlists from Text</DialogTitle>
+                 <DialogDescription>Paste the text from a shared workbook below.</DialogDescription>
                </DialogHeader>
-               <p className="text-muted-foreground">Select a workbook to import the setlists into.</p>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="outline" className="w-full justify-between">
-                      {workbooks.find(w => w.id === workbookToImportTo)?.name || "Select a workbook"}
-                      <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                    {workbooks.map(w => (
-                      <DropdownMenuItem key={w.id} onSelect={() => setWorkbookToImportTo(w.id)}>
-                        {w.name}
-                      </DropdownMenuItem>
-                    ))}
-                  </DropdownMenuContent>
-                </DropdownMenu>
-                <Button onClick={() => fileInputRef.current?.click()} disabled={!workbookToImportTo}>Choose .rsp File</Button>
-                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".rsp,application/json" className="hidden"/>
+                <div className="grid gap-4 py-4">
+                    <div className="grid gap-2">
+                        <label className="text-sm font-medium">Import into Workbook</label>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full justify-between">
+                              {workbooks.find(w => w.id === workbookToImportTo)?.name || "Select a workbook"}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                            {workbooks.map(w => (
+                              <DropdownMenuItem key={w.id} onSelect={() => setWorkbookToImportTo(w.id)}>
+                                {w.name}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                    </div>
+                    <Textarea 
+                        value={importText}
+                        onChange={(e) => setImportText(e.target.value)}
+                        placeholder="Paste shared setlist data here..."
+                        className="h-48 font-mono"
+                    />
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                  <Button onClick={handleImportFromText} disabled={!importText || !workbookToImportTo}>Import</Button>
+                </DialogFooter>
              </DialogContent>
           </Dialog>
         </SidebarMenuItem>
         <SidebarMenuItem>
-           <Dialog open={isExportOpen} onOpenChange={setIsExportOpen}>
+           <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
               <DialogTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start" onClick={() => setIsExportOpen(true)}>
-                  <Download className="mr-2 h-4 w-4" />
-                  Export Workbook
+                <Button variant="ghost" className="w-full justify-start" onClick={handleShareClick}>
+                  <Share className="mr-2 h-4 w-4" />
+                  Share Workbook
                 </Button>
               </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Export "{activeWorkbook?.name}"</DialogTitle></DialogHeader>
-                <div className="py-4">
-                  <label htmlFor="filename" className="text-sm font-medium text-muted-foreground">Filename</label>
-                  <Input id="filename" value={exportFilename} onChange={(e) => setExportFilename(e.target.value)} placeholder="e.g., my_setlists.rsp" className="mt-2" />
+              <DialogContent className="sm:max-w-xl">
+                <DialogHeader>
+                    <DialogTitle>Share "{activeWorkbook?.name}"</DialogTitle>
+                    <DialogDescription>Copy the text below and send it to your friends. They can import it using the "Import from Text" button.</DialogDescription>
+                </DialogHeader>
+                <div className="relative py-4">
+                  <Textarea 
+                    readOnly 
+                    value={activeWorkbook ? JSON.stringify(activeWorkbook.setlists, null, 2) : ""} 
+                    className="h-64 font-mono"
+                   />
                 </div>
                 <DialogFooter>
-                  <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-                  <Button onClick={handleExportSetlists}>Save & Export</Button>
+                  <DialogClose asChild><Button type="button" variant="secondary">Done</Button></DialogClose>
+                  <Button onClick={handleCopyToClipboard}>
+                    {hasCopied ? <ClipboardCheck className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
+                    {hasCopied ? "Copied!" : "Copy to Clipboard"}
+                  </Button>
                 </DialogFooter>
               </DialogContent>
             </Dialog>
