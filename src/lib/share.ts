@@ -1,22 +1,21 @@
 
-import { doc, setDoc, getDoc, collection } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, addDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Workbook } from './types';
 
-const shareCollection = collection(db, 'shared-workbooks');
+const shareCollectionRef = collection(db, 'shared-workbooks');
 
 export async function shareWorkbook(workbook: Workbook): Promise<string> {
-    const shareId = workbook.id; // Use workbook's own ID for sharing
-    const docRef = doc(shareCollection, shareId);
-    await setDoc(docRef, {
+    // Create a new document with a unique, auto-generated ID
+    const docRef = await addDoc(shareCollectionRef, {
         ...workbook,
         sharedAt: new Date(),
     });
-    return shareId;
+    return docRef.id;
 }
 
 export async function getSharedWorkbook(shareId: string): Promise<Workbook | null> {
-    const docRef = doc(shareCollection, shareId);
+    const docRef = doc(db, 'shared-workbooks', shareId);
     const docSnap = await getDoc(docRef);
 
     if (docSnap.exists()) {
