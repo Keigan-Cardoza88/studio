@@ -128,7 +128,7 @@ export function SongView({ song, workbookId, setlistId, onBack }: SongViewProps)
     updateSong(workbookId, setlistId, song.id, { scrollSpeed: speedValue });
   };
 
-  const transposedLyrics = transpose(song.lyricsWithChords, song.transpose);
+  const transposedLyrics = song ? transpose(song.lyricsWithChords, song.transpose) : "";
 
   return (
     <div className="h-screen flex flex-col p-1 mt-[10px]">
@@ -145,7 +145,7 @@ export function SongView({ song, workbookId, setlistId, onBack }: SongViewProps)
                   workbookId={workbookId} 
                   setlistId={setlistId} 
                   song={song}
-                  transposedLyrics={transposedLyrics}
+                  transposedLyrics={song ? transposedLyrics : undefined}
                 />
             </div>
         </header>
