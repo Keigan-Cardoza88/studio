@@ -1,5 +1,4 @@
 
-
 const notesSharp = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const notesFlat = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
@@ -15,50 +14,61 @@ const transposeNote = (note: string, semitones: number): string => {
     const originalIndex = getNoteIndex(note);
     if (originalIndex === -1) return note;
     const newIndex = (originalIndex + semitones + 12) % 12;
-    
-    // Default to sharp notes unless the original had a 'b' and the new note can be flat.
+
     const preferFlat = note.includes('b');
     
-    if (preferFlat) {
+    if (preferFlat && notesFlat[newIndex].includes('b')) {
       return notesFlat[newIndex];
     }
     return notesSharp[newIndex];
 };
 
+
 const isValidChord = (word: string): boolean => {
     if (!word) return false;
-    // Match the root note (e.g., C, F#, Bb)
+    
+    // Regex to find a valid root note (C, C#, Db, etc.)
     const rootMatch = word.match(/^[A-G](b|#)?/);
     if (!rootMatch) return false;
 
-    // The rest of the string after the root note
-    const rest = word.substring(rootMatch[0].length);
+    const rootNote = rootMatch[0];
+    const restOfString = word.substring(rootNote.length);
 
-    // If there's nothing after the root, it's a valid chord (e.g., "C", "G#")
-    if (rest.length === 0) return true;
+    // If the word is just the root note, it's a valid chord.
+    if (restOfString.length === 0) return true;
 
-    // This regex checks for all valid chord extensions, modifiers, and slash chords.
-    // It allows for:
-    // - Modifiers like m, maj, min, dim, aug, sus, add
-    // - Numbers for extensions (7, 9, 11, 13)
-    // - Alterations like b5, #9
-    // - Slash chords like /F#
-    // - Trailing characters like *
-    // Crucially, it will fail on words like "Chorus" because 'h', 'o', 'r', 'u', 's' are not in the allowed patterns.
-    const chordQualityRegex = /^((maj|min|m|dim|aug|sus|add|M|º|o|\+)?\d*([#b]\d+)*(\/[A-G](b|#)?)?(\*)*)*$/;
+    // A list of valid chord qualities and extensions that can follow a root note.
+    // This is the key to preventing words like "Chorus" from being matched.
+    const validQualities = [
+        'm', 'maj', 'dim', 'aug', 'sus', 'add', 
+        '7', '9', '11', '13', '6', '5', '4', '2',
+        'b', '#', '/', '*',
+        'sus2', 'sus4', 'maj7', 'min7', 'm7',
+    ];
     
-    return chordQualityRegex.test(rest);
+    // Check if the rest of the string starts with a valid chord quality.
+    // If not, it's a regular word, not a chord.
+    const startsWithValidQuality = validQualities.some(q => restOfString.startsWith(q));
+
+    if (!startsWithValidQuality) {
+        // A special case for chords like C(add9)
+        if (restOfString.startsWith('(') && restOfString.endsWith(')')) return true;
+        return false;
+    }
+
+    // Now, ensure ALL characters in the rest of the string are valid chord characters.
+    // This handles complex chords and prevents mismatches.
+    const validChordCharRegex = /^[mMajAdDimSusAugb#/\d*()]+$/;
+    
+    return validChordCharRegex.test(restOfString);
 }
 
 
 const transposeChord = (chord: string, semitones: number): string => {
     if (!chord) return "";
     
-    // Find the root note, which could be one or two characters (e.g., C, C#)
     const rootMatch = chord.match(/^[A-G](?:#|b)?/);
-    if (!rootMatch) {
-      return chord; 
-    }
+    if (!rootMatch) return chord; 
     
     const root = rootMatch[0];
     const rest = chord.substring(root.length);
