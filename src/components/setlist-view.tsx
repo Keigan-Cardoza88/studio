@@ -10,11 +10,10 @@ import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { GripVertical, Music, Trash2, Move, Copy, ChevronsUpDown, PlusCircle } from 'lucide-react';
+import { GripVertical, Music, Trash2, Move, Copy, ChevronsUpDown, PlusCircle, CheckSquare } from 'lucide-react';
 import { SongEditor } from './song-editor';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
-import { useLongPress } from '@/hooks/use-long-press';
 
 interface SetlistViewProps {
   workbookId: string;
@@ -40,6 +39,7 @@ function MoveCopyDialog() {
     // Reset local state when the dialog opens or closes
     useEffect(() => {
         if (isActionModalOpen) {
+            // In 'move' mode, start with no workbook selected. In 'copy' mode, default to the source workbook.
             setTargetWorkbookId(actionModalMode === 'move' ? null : actionSource?.workbookId || null);
             setTargetSetlistId(null);
             setIsCreatingWorkbook(false);
@@ -48,6 +48,7 @@ function MoveCopyDialog() {
             setNewSetlistName("");
         }
     }, [isActionModalOpen, actionSource, actionModalMode]);
+
 
     const targetableWorkbooks = useMemo(() => {
         if (!actionSource) return [];
@@ -203,28 +204,13 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   useEffect(() => {
     setSongs(setlist.songs);
   }, [setlist.songs]);
+  
+  // Clear selection mode when the setlist changes
+  useEffect(() => {
+    setIsSongSelectionModeActive(false);
+    clearSongSelection();
+  }, [setlist.id, setIsSongSelectionModeActive, clearSongSelection]);
 
-  const longPressEvents = useLongPress({
-      onLongPress: (e, target) => {
-        if (!target) return;
-        const songId = target.dataset.songId;
-        if (songId && !isSongSelectionModeActive) {
-            setIsSongSelectionModeActive(true);
-            handleSongSelectionChange(songId, true);
-        }
-      },
-      onClick: (e, target) => {
-        if (!target) return;
-        const songId = target.dataset.songId;
-        if (!songId) return;
-
-        if (isSongSelectionModeActive) {
-          handleSongSelectionChange(songId, !selectedSongIds.includes(songId));
-        } else {
-          setActiveSongId(songId);
-        }
-      }
-  });
   
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
     if (isSongSelectionModeActive) {
@@ -236,7 +222,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   };
 
   const handleDragEnter = (e: React.DragEvent<HTMLDivElement>, index: number) => {
-    if (dragItem.current === null) return;
+    if (isSongSelectionModeActive || dragItem.current === null) return;
     dragOverItem.current = index;
     const newSongs = [...songs];
     const draggedItemContent = newSongs.splice(dragItem.current!, 1)[0];
@@ -247,10 +233,23 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   };
   
   const handleDragEnd = () => {
-    if (dragItem.current === null) return;
+    if (isSongSelectionModeActive || dragItem.current === null) return;
     reorderSongs(workbookId, setlist.id, songs);
     dragItem.current = null;
     dragOverItem.current = null;
+  };
+
+  const handleSongClick = (songId: string) => {
+    if (!isSongSelectionModeActive) {
+      setActiveSongId(songId);
+    }
+  };
+
+  const toggleSelectionMode = () => {
+    if (isSongSelectionModeActive) {
+      clearSongSelection();
+    }
+    setIsSongSelectionModeActive(!isSongSelectionModeActive);
   };
   
   const allSongsSelected = songs.length > 0 && selectedSongIds.length === songs.length;
@@ -277,17 +276,17 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
         <div className="flex gap-2 flex-wrap">
           {isSongSelectionModeActive ? (
               <>
-                  <Button onClick={() => openActionModal('move', workbookId, setlist.id)}><Move className="mr-2"/> Move</Button>
-                  <Button onClick={() => openActionModal('copy', workbookId, setlist.id)}><Copy className="mr-2"/> Copy</Button>
-                  <Button variant="ghost" onClick={() => {
-                       clearSongSelection();
-                       setIsSongSelectionModeActive(false);
-                  }}>
+                  <Button onClick={() => openActionModal('move', workbookId, setlist.id)} disabled={selectedSongIds.length === 0}><Move className="mr-2"/> Move</Button>
+                  <Button onClick={() => openActionModal('copy', workbookId, setlist.id)} disabled={selectedSongIds.length === 0}><Copy className="mr-2"/> Copy</Button>
+                  <Button variant="ghost" onClick={toggleSelectionMode}>
                       Cancel
                   </Button>
               </>
           ) : (
-            <SongEditor workbookId={workbookId} setlistId={setlist.id} />
+            <>
+              <Button variant="outline" onClick={toggleSelectionMode}><CheckSquare className="mr-2"/> Select</Button>
+              <SongEditor workbookId={workbookId} setlistId={setlist.id} />
+            </>
           )}
         </div>
       </div>
@@ -312,8 +311,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
               )}
               <Card 
                 className="hover:bg-card/80 transition-colors flex-grow"
-                {...longPressEvents}
-                data-song-id={song.id}
+                onClick={() => handleSongClick(song.id)}
               >
                 <CardContent className="p-4 flex items-center justify-between">
                   <div className={cn("flex items-center gap-4 flex-grow", isSongSelectionModeActive ? 'cursor-default' : 'cursor-pointer')}>
