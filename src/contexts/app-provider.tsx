@@ -302,11 +302,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setWorkbooks(prev => {
         const existingWorkbook = prev.find(w => w.id === sharedWorkbook.id);
         if (existingWorkbook) {
-            toast({
-                title: "Workbook exists",
-                description: `You already have a workbook named "${existingWorkbook.name}".`,
-            });
-            // Optionally, you could merge them here. For now, we do nothing.
+            // If it already exists, don't do anything, just go to it.
+            // The share page will handle notifying the user.
             return prev;
         }
         toast({
@@ -476,3 +473,5 @@ export function useAppContext() {
   }
   return context;
 }
+
+    
