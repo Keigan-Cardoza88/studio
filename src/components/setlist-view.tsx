@@ -205,15 +205,17 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   }, [setlist.songs]);
 
   const longPressEvents = useLongPress({
-      onLongPress: (e) => {
-        const songId = (e.currentTarget as HTMLElement).dataset.songId;
+      onLongPress: (e, target) => {
+        if (!target) return;
+        const songId = target.dataset.songId;
         if (songId && !isSongSelectionModeActive) {
             setIsSongSelectionModeActive(true);
             handleSongSelectionChange(songId, true);
         }
       },
-      onClick: (e) => {
-        const songId = (e.currentTarget as HTMLElement).dataset.songId;
+      onClick: (e, target) => {
+        if (!target) return;
+        const songId = target.dataset.songId;
         if (!songId) return;
 
         if (isSongSelectionModeActive) {
