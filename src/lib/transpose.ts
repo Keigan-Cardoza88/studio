@@ -1,7 +1,14 @@
 
+
 const notesSharp = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const notesFlat = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
-const chordRegex = /[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7)?(\/[A-G](b|#)?)?/g;
+
+// Regex to match a chord. It captures:
+// 1. The root note (e.g., "C", "F#", "Bb")
+// 2. The chord quality/modifiers (e.g., "m7", "dim", "sus4")
+// 3. An optional bass note for slash chords (e.g., "/G")
+// 4. Any trailing characters like '*' to be ignored during transposition but preserved.
+const chordRegex = /([A-G](?:b|#)?)([^/ \n\r]*?)(\/[A-G](?:b|#)?)?(\*?)/g;
 
 
 const getNoteIndex = (note: string): number => {
@@ -13,21 +20,25 @@ const getNoteIndex = (note: string): number => {
 };
 
 const transposeNote = (note: string, semitones: number): string => {
-    if (!note.trim()) return note;
-
-    const noteRootMatch = note.match(/^[A-G](b|#)?/);
-    if (!noteRootMatch) return note;
-
-    const root = noteRootMatch[0];
-    const rest = note.substring(root.length);
-    const originalIndex = getNoteIndex(root);
-    
-    if (originalIndex === -1) return note;
-
+    const originalIndex = getNoteIndex(note);
+    if (originalIndex === -1) return note; // Not a valid note
     const newIndex = (originalIndex + semitones + 12) % 12;
-    
-    return notesSharp[newIndex] + rest;
+    // Prefer sharp notes for consistency
+    return notesSharp[newIndex];
 };
+
+
+const transposeSingleChord = (match: string, root: string, quality: string, slash: string, asterisk: string, semitones: number): string => {
+    const transposedRoot = transposeNote(root, semitones);
+    let transposedSlash = '';
+    if (slash) {
+        const slashNote = slash.substring(1);
+        const transposedSlashNote = transposeNote(slashNote, semitones);
+        transposedSlash = '/' + transposedSlashNote;
+    }
+    return `${transposedRoot}${quality}${transposedSlash}${asterisk}`;
+};
+
 
 const isChordLine = (line: string): boolean => {
     const trimmedLine = line.trim();
@@ -39,7 +50,7 @@ const isChordLine = (line: string): boolean => {
     const nonChordChars = trimmedLine
         .replace(/\[[^\]]+\]/g, '') // remove inline chords
         .replace(/[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7)?(\/[A-G](b|#)?)?/gi, '') // remove valid chord patterns
-        .replace(/[\s/|()-]/g, ''); // remove separators and formatting
+        .replace(/[\s/|()-*]/g, ''); // remove separators and formatting
 
     if (nonChordChars.length > 0) {
         return false;
@@ -57,14 +68,21 @@ export const transpose = (lyricsWithChords: string, semitones: number): string =
     if (semitones === 0) return lyricsWithChords;
     
     return lyricsWithChords.split('\n').map(line => {
-        // If the line is determined to be ONLY a chord line, transpose it.
-        // This preserves spacing because `replace` with a global regex acts on each match.
+        // For lines containing only chords, transpose each chord.
         if (isChordLine(line)) {
-            return line.replace(chordRegex, chord => transposeNote(chord, semitones));
+            return line.replace(chordRegex, (match, root, quality, slash, asterisk) => {
+                return transposeSingleChord(match, root, quality, slash, asterisk, semitones);
+            });
         }
+        
+        // For lines with inline chords (e.g., "[Am]Some lyrics"), transpose only the chords inside brackets.
+        return line.replace(/\[([^\]]+)\]/g, (matchWithBrackets) => {
+            const chordInside = matchWithBrackets.substring(1, matchWithBrackets.length - 1);
+            const transposedChord = chordInside.replace(chordRegex, (match, root, quality, slash, asterisk) => {
+                 return transposeSingleChord(match, root, quality, slash, asterisk, semitones);
+            });
+            return `[${transposedChord}]`;
+        });
 
-        // For all other lines (lyrics, lyrics with inline chords, structural markers),
-        // return them completely unchanged.
-        return line;
     }).join('\n');
 };
