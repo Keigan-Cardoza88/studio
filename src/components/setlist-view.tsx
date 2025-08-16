@@ -61,7 +61,13 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     }
   }, [pendingAction]);
   
-  const targetableWorkbooks = useMemo(() => workbooks, [workbooks]);
+  const targetableWorkbooks = useMemo(() => {
+    if (modalMode === 'move') {
+      return workbooks.filter(wb => wb.id !== workbookId);
+    }
+    return workbooks;
+  }, [workbooks, modalMode, workbookId]);
+
   const targetableSetlists = useMemo(() => {
     if (!targetWorkbookId) return [];
     const targetWb = workbooks.find(wb => wb.id === targetWorkbookId);
@@ -113,7 +119,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   
   const openActionModal = (mode: ModalMode) => {
     setModalMode(mode);
-    setTargetWorkbookId(workbookId);
+    setTargetWorkbookId(null);
     setTargetSetlistId(null);
     setIsCreatingWorkbook(false);
     setIsCreatingSetlist(false);
@@ -267,7 +273,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
                         <DropdownMenu>
                           <DropdownMenuTrigger asChild>
                             <Button variant="outline" className="w-full justify-between">
-                                {targetableWorkbooks.find(w => w.id === targetWorkbookId)?.name || "Select a workbook"}
+                                {workbooks.find(w => w.id === targetWorkbookId)?.name || "Select a workbook"}
                                 <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </DropdownMenuTrigger>
@@ -277,6 +283,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
                                 {w.name}
                                 </DropdownMenuItem>
                             ))}
+                             {targetableWorkbooks.length === 0 && modalMode === 'move' && <DropdownMenuItem disabled>No other workbooks to move to.</DropdownMenuItem>}
                           </DropdownMenuContent>
                         </DropdownMenu>
                         <Button variant="outline" size="icon" onClick={() => setIsCreatingWorkbook(true)}><PlusCircle /></Button>
@@ -328,6 +335,3 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     </div>
   );
 }
-
-
-    
