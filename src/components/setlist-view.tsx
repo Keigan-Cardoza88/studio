@@ -240,7 +240,9 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   };
 
   const handleSongClick = (songId: string) => {
-    if (!isSongSelectionModeActive) {
+    if (isSongSelectionModeActive) {
+      // Allow checkbox to handle its own state
+    } else {
       setActiveSongId(songId);
     }
   };
@@ -267,7 +269,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
             />
            )}
            <div>
-              <h1 className="text-4xl font-bold font-headline">{setlist.name}</h1>
+              <h1 className="text-3xl font-bold font-headline">{setlist.name}</h1>
               <p className="text-muted-foreground">
                 {isSongSelectionModeActive ? `${selectedSongIds.length} of ${songs.length} selected` : `${songs.length} songs`}
               </p>
@@ -343,4 +345,5 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     </div>
   );
 }
+
 
