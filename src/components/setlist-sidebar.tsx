@@ -9,11 +9,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Share, Clipboard, ClipboardCheck, FilePenLine, Merge, Loader2, Link } from 'lucide-react';
 import { useForm, SubmitHandler } from "react-hook-form";
-import type { Workbook } from '@/lib/types';
+import type { Workbook, Setlist } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useLongPress } from '@/hooks/use-long-press';
 import { cn } from '@/lib/utils';
@@ -167,7 +167,7 @@ function MergeSetlistsDialog() {
 export function SetlistSidebar() {
   const { 
     workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook, 
-    activeWorkbook, setActiveWorkbookId, addSetlist, activeSetlistId, setActiveSetlistId, 
+    activeWorkbook, setActiveWorkbookId, addSetlist, updateSetlist, activeSetlistId, setActiveSetlistId, 
     deleteSetlist, activeWorkbookId, 
     selectedSetlistIds, handleSetlistSelectionChange, isSetlistSelectionModeActive, setIsSetlistSelectionModeActive,
     clearSetlistSelection,
@@ -177,6 +177,8 @@ export function SetlistSidebar() {
   const [isShareOpen, setIsShareOpen] = React.useState(false);
   const [editingWorkbookId, setEditingWorkbookId] = React.useState<string | null>(null);
   const [editingWorkbookName, setEditingWorkbookName] = React.useState("");
+  const [editingSetlistId, setEditingSetlistId] = React.useState<string | null>(null);
+  const [editingSetlistName, setEditingSetlistName] = React.useState("");
   const [hasCopied, setHasCopied] = React.useState(false);
   const [shareUrl, setShareUrl] = React.useState('');
   const [isSharing, setIsSharing] = React.useState(false);
@@ -214,8 +216,25 @@ export function SetlistSidebar() {
   const saveWorkbookName = () => {
     if (editingWorkbookId && editingWorkbookName.trim()) {
       updateWorkbook(editingWorkbookId, { name: editingWorkbookName.trim() });
-      cancelEditingWorkbook();
     }
+    cancelEditingWorkbook();
+  };
+
+  const startEditingSetlist = (setlist: Setlist) => {
+    setEditingSetlistId(setlist.id);
+    setEditingSetlistName(setlist.name);
+  };
+
+  const cancelEditingSetlist = () => {
+    setEditingSetlistId(null);
+    setEditingSetlistName("");
+  };
+
+  const saveSetlistName = (workbookId: string) => {
+    if (editingSetlistId && editingSetlistName.trim()) {
+      updateSetlist(workbookId, editingSetlistId, { name: editingSetlistName.trim() });
+    }
+    cancelEditingSetlist();
   };
 
 
@@ -374,9 +393,9 @@ export function SetlistSidebar() {
                         </DropdownMenuItem>
                        <AlertDialog>
                           <AlertDialogTrigger asChild>
-                            <DropdownMenuItem onSelect={(e) => e.preventDefault()}>
-                                <Trash2 className="mr-2 h-4 w-4 text-destructive" />
-                                <span className="text-destructive">Delete</span>
+                            <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                <span>Delete</span>
                             </DropdownMenuItem>
                           </AlertDialogTrigger>
                           <AlertDialogContent>
@@ -417,7 +436,7 @@ export function SetlistSidebar() {
                     {workbook.setlists.map((setlist) => (
                       <SidebarMenuItem key={setlist.id} className="group/item flex items-center gap-2">
                         <div 
-                          className="flex-grow flex items-center"
+                          className="flex-grow flex items-center min-w-0"
                           {...longPressEvents} 
                           data-setlist-id={setlist.id}
                           data-workbook-id={workbook.id}
@@ -428,44 +447,69 @@ export function SetlistSidebar() {
                                 onCheckedChange={(checked) => handleSetlistSelectionChange(setlist.id, Boolean(checked))}
                                 className="ml-2"
                             /> }
-                            <SidebarMenuButton 
-                                isActive={setlist.id === activeSetlistId && !isSetlistSelectionModeActive} 
-                                className={cn("w-full cursor-pointer", isSetlistSelectionModeActive && "cursor-default")}
-                                disabled={isSetlistSelectionModeActive && activeWorkbookId !== workbook.id}
-                            >
-                               <Book className="h-4 w-4 text-blue-400" />
-                               <span className="truncate flex-grow text-left text-blue-400">{setlist.name}</span>
-                            </SidebarMenuButton>
+                             {editingSetlistId === setlist.id ? (
+                                <div className="flex-1 min-w-0 py-1" onClick={(e) => e.stopPropagation()}>
+                                  <Input
+                                    value={editingSetlistName}
+                                    onChange={(e) => setEditingSetlistName(e.target.value)}
+                                    onBlur={() => saveSetlistName(workbook.id)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter') saveSetlistName(workbook.id);
+                                      if (e.key === 'Escape') cancelEditingSetlist();
+                                    }}
+                                    autoFocus
+                                    className="h-8 w-full"
+                                  />
+                                </div>
+                              ) : (
+                                <SidebarMenuButton 
+                                    isActive={setlist.id === activeSetlistId && !isSetlistSelectionModeActive} 
+                                    className={cn("w-full cursor-pointer", isSetlistSelectionModeActive && "cursor-default")}
+                                    disabled={isSetlistSelectionModeActive && activeWorkbookId !== workbook.id}
+                                >
+                                  <Book className="h-4 w-4 shrink-0 text-blue-400" />
+                                  <span className="truncate flex-grow text-left text-blue-400">{setlist.name}</span>
+                                </SidebarMenuButton>
+                              )}
                         </div>
-                        <div className="absolute right-1 top-1/2 -translate-y-1/2 h-7 flex items-center opacity-0 group-hover/item:opacity-100">
+                        <div className="absolute right-1 top-1/2 -translate-y-1/2 h-7 flex items-center opacity-0 group-hover/item:opacity-100 group-focus-within/item:opacity-100">
                            <DropdownMenu>
                               <DropdownMenuTrigger asChild>
                                 <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isSetlistSelectionModeActive}><ChevronsUpDown className="h-4 w-4" /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent>
+                                <DropdownMenuItem onClick={() => startEditingSetlist(setlist)}>
+                                  <FilePenLine className="mr-2 h-4 w-4" />
+                                  Rename
+                                </DropdownMenuItem>
+                                <DropdownMenuSeparator />
                                 {workbooks.filter(w => w.id !== workbook.id).map(targetWorkbook => (
                                   <DropdownMenuItem key={targetWorkbook.id} onClick={() => handleMoveSetlist(setlist.id, workbook.id, targetWorkbook.id)}>
                                     Move to "{targetWorkbook.name}"
                                   </DropdownMenuItem>
                                 ))}
                                 {workbooks.length <= 1 && <DropdownMenuItem disabled>No other workbooks</DropdownMenuItem>}
+                                <DropdownMenuSeparator />
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                      <Trash2 className="mr-2 h-4 w-4" />
+                                      <span>Delete</span>
+                                    </DropdownMenuItem>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Delete "{setlist.name}"?</AlertDialogTitle>
+                                      <AlertDialogDescription>This will permanently delete the setlist and all its songs.</AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                      <AlertDialogAction onClick={(e) => handleDeleteSetlist(e, workbook.id, setlist.id)}>Delete</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
                               </DropdownMenuContent>
                             </DropdownMenu>
-                           <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isSetlistSelectionModeActive}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Are you sure?</AlertDialogTitle>
-                                  <AlertDialogDescription>This will permanently delete the "{setlist.name}" setlist and all its songs.</AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                  <AlertDialogAction onClick={(e) => handleDeleteSetlist(e, workbook.id, setlist.id)}>Delete</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
                         </div>
                       </SidebarMenuItem>
                     ))}
