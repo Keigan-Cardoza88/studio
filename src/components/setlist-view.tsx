@@ -96,18 +96,16 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     setIsModalOpen(true);
   };
 
-  const handleConfirmAction = (finalTargetSetlistId?: string) => {
-    const destSetlistId = finalTargetSetlistId || targetSetlistId;
-
-    if (!modalMode || !targetWorkbookId || !destSetlistId) {
+  const handleConfirmAction = () => {
+    if (!modalMode || !targetWorkbookId || !targetSetlistId) {
       toast({ title: "Selection Missing", description: "Please select a destination workbook and setlist.", variant: "destructive" });
       return;
     }
 
     if (modalMode === 'move') {
-      moveSongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, destSetlistId);
+      moveSongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, targetSetlistId);
     } else if (modalMode === 'copy') {
-      copySongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, destSetlistId);
+      copySongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, targetSetlistId);
     }
 
     setIsModalOpen(false);
@@ -127,8 +125,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   const handleCreateSetlist = () => {
     if (newSetlistName.trim() && targetWorkbookId) {
       const newSetlistId = addSetlist(targetWorkbookId, newSetlistName.trim());
-      // Immediately perform the action with the newly created setlist.
-      handleConfirmAction(newSetlistId);
+      setTargetSetlistId(newSetlistId);
       setNewSetlistName("");
       setIsCreatingSetlist(false);
     }
@@ -288,7 +285,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="secondary">Cancel</Button></DialogClose>
-                <Button onClick={() => handleConfirmAction()} disabled={!targetSetlistId}>Confirm</Button>
+                <Button onClick={handleConfirmAction} disabled={!targetSetlistId}>Confirm</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
