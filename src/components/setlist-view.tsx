@@ -55,18 +55,24 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   }, [setlist.songs, setlist.id]);
 
   useEffect(() => {
-      if (pendingAction && pendingAction.targetSetlistId) {
-          handleConfirmAction(pendingAction.targetSetlistId);
-          setPendingAction(null);
-      }
+    if (pendingAction && pendingAction.targetSetlistId) {
+        handleConfirmAction(pendingAction.targetSetlistId);
+        setPendingAction(null);
+    }
   }, [pendingAction]);
   
   const targetableWorkbooks = useMemo(() => workbooks, [workbooks]);
   const targetableSetlists = useMemo(() => {
-      if (!targetWorkbookId) return [];
-      const targetWb = workbooks.find(wb => wb.id === targetWorkbookId);
-      return targetWb?.setlists || [];
-  }, [workbooks, targetWorkbookId]);
+    if (!targetWorkbookId) return [];
+    const targetWb = workbooks.find(wb => wb.id === targetWorkbookId);
+    if (!targetWb) return [];
+
+    if (modalMode === 'move' && targetWorkbookId === workbookId) {
+      return targetWb.setlists.filter(s => s.id !== setlist.id);
+    }
+    
+    return targetWb.setlists;
+  }, [workbooks, targetWorkbookId, modalMode, workbookId, setlist.id]);
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
     if (selectedSongIds.length > 0) {
@@ -322,5 +328,6 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     </div>
   );
 }
+
 
     
