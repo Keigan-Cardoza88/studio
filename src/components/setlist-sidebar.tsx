@@ -11,13 +11,15 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Share, Clipboard, ClipboardCheck, FilePenLine, Merge, Loader2 } from 'lucide-react';
+import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Share, Clipboard, ClipboardCheck, FilePenLine, Merge, Loader2, Link } from 'lucide-react';
 import { useForm, SubmitHandler } from "react-hook-form";
 import type { Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useLongPress } from '@/hooks/use-long-press';
 import { cn } from '@/lib/utils';
 import { shareWorkbook } from '@/lib/share';
+import { useRouter } from 'next/navigation';
+
 
 type Inputs = {
   name: string;
@@ -25,6 +27,75 @@ type Inputs = {
 
 type MergeInputs = {
   name: string;
+}
+
+type ImportInputs = {
+  url: string;
+};
+
+function ImportDialog() {
+  const [isOpen, setIsOpen] = React.useState(false);
+  const { register, handleSubmit, formState: { errors } } = useForm<ImportInputs>();
+  const router = useRouter();
+  const { toast } = useToast();
+
+  const onSubmit: SubmitHandler<ImportInputs> = (data) => {
+    try {
+      const url = new URL(data.url);
+      const pathSegments = url.pathname.split('/');
+      const shareId = pathSegments[pathSegments.length - 1];
+
+      if (pathSegments[pathSegments.length - 2] !== 'share' || !shareId) {
+        throw new Error("Invalid share link format.");
+      }
+      
+      router.push(`/share/${shareId}`);
+      setIsOpen(false);
+
+    } catch (e) {
+      console.error(e);
+      toast({
+        title: "Invalid Link",
+        description: "Please paste a valid workbook share link.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+      <DialogTrigger asChild>
+        <Button variant="ghost" className="w-full justify-start">
+          <Link className="mr-2 h-4 w-4" />
+          Import from Link
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Import Workbook from Link</DialogTitle>
+          <DialogDescription>
+            Paste the share link you received to import the workbook.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="py-4">
+             <Input 
+                {...register("url", { required: "A share link is required." })} 
+                placeholder="https://..." 
+                className="my-4" 
+             />
+             {errors.url && <p className="text-sm text-destructive">{errors.url.message}</p>}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">Cancel</Button>
+            </DialogClose>
+            <Button type="submit">Import</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  )
 }
 
 function MergeSetlistsDialog() {
@@ -178,6 +249,7 @@ export function SetlistSidebar() {
       console.error("DEBUG: Sharing failed with error:", e);
       toast({ title: "Sharing Failed", description: "Could not generate share link. Please try again.", variant: "destructive" });
       setIsShareOpen(false); 
+      setIsSharing(false);
     } finally {
         setIsSharing(false);
         console.log("DEBUG: generateShareLink finished.");
@@ -422,6 +494,9 @@ export function SetlistSidebar() {
                     </Button>
                 </SidebarMenuItem>
             )}
+            <SidebarMenuItem>
+              <ImportDialog />
+            </SidebarMenuItem>
             <SidebarMenuItem>
                <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
                   <DialogTrigger asChild>
