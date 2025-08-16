@@ -6,7 +6,7 @@ const withPWA = require('@ducanh2912/next-pwa').default({
   skipWaiting: true,
   runtimeCaching: [
     {
-      urlPattern: ({ url }) => true,
+      urlPattern: ({ url }) => true, //hello
       handler: 'NetworkFirst',
       options: {
         cacheName: 'all-pages',
