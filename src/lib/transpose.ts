@@ -17,10 +17,15 @@ const transposeNote = (note: string, semitones: number): string => {
 
     const preferFlat = note.includes('b');
     
+    // Heuristic: Prefer sharp unless original was flat or it's a common flat key note
     if (preferFlat && notesFlat[newIndex].includes('b')) {
       return notesFlat[newIndex];
     }
-    return notesSharp[newIndex];
+    if (!note.includes('b') && notesSharp.includes(note)) {
+         return notesSharp[newIndex];
+    }
+    
+    return notesFlat[newIndex] ? notesFlat[newIndex] : notesSharp[newIndex];
 };
 
 
@@ -38,7 +43,6 @@ const isValidChord = (word: string): boolean => {
     if (restOfString.length === 0) return true;
 
     // A list of valid chord qualities and extensions that can follow a root note.
-    // This is the key to preventing words like "Chorus" from being matched.
     const validQualities = [
         'm', 'maj', 'dim', 'aug', 'sus', 'add', 
         '7', '9', '11', '13', '6', '5', '4', '2',
@@ -57,7 +61,6 @@ const isValidChord = (word: string): boolean => {
     }
 
     // Now, ensure ALL characters in the rest of the string are valid chord characters.
-    // This handles complex chords and prevents mismatches.
     const validChordCharRegex = /^[mMajAdDimSusAugb#/\d*()]+$/;
     
     return validChordCharRegex.test(restOfString);
