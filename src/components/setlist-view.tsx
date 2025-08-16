@@ -38,36 +38,37 @@ function MoveCopyDialog() {
 
     // Reset local state when the dialog opens or closes
     useEffect(() => {
-        if (isActionModalOpen) {
-            setTargetWorkbookId(actionSource?.workbookId || null);
-            setTargetSetlistId(null);
-        } else {
-            // Reset all state on close
-            setTargetWorkbookId(null);
-            setTargetSetlistId(null);
-            setIsCreatingWorkbook(false);
-            setNewWorkbookName("");
-            setIsCreatingSetlist(false);
-            setNewSetlistName("");
-        }
-    }, [isActionModalOpen, actionSource]);
+      if (isActionModalOpen) {
+          if (actionModalMode === 'move') {
+              setTargetWorkbookId(null);
+          } else { // copy
+              setTargetWorkbookId(actionSource?.workbookId || null);
+          }
+          setTargetSetlistId(null);
+          setIsCreatingWorkbook(false);
+          setNewWorkbookName("");
+          setIsCreatingSetlist(false);
+          setNewSetlistName("");
+      }
+  }, [isActionModalOpen, actionSource, actionModalMode]);
 
     const targetableWorkbooks = useMemo(() => {
+        if (!actionSource) return [];
         if (actionModalMode === 'move') {
           // Exclude the source workbook when moving
-          return workbooks.filter(wb => wb.id !== actionSource?.workbookId);
+          return workbooks.filter(wb => wb.id !== actionSource.workbookId);
         }
         return workbooks;
     }, [workbooks, actionModalMode, actionSource]);
 
     const targetableSetlists = useMemo(() => {
-        if (!targetWorkbookId) return [];
+        if (!targetWorkbookId || !actionSource) return [];
         const targetWb = workbooks.find(wb => wb.id === targetWorkbookId);
         if (!targetWb) return [];
     
-        if (actionModalMode === 'move' && targetWorkbookId === actionSource?.workbookId) {
+        if (actionModalMode === 'move' && targetWorkbookId === actionSource.workbookId) {
           // Exclude source setlist when moving within the same workbook
-          return targetWb.setlists.filter(s => s.id !== actionSource?.setlistId);
+          return targetWb.setlists.filter(s => s.id !== actionSource.setlistId);
         }
         
         return targetWb.setlists;
@@ -139,12 +140,7 @@ function MoveCopyDialog() {
                                 {w.name}
                                 </DropdownMenuItem>
                             ))}
-                            {actionModalMode === 'copy' && workbooks.find(w => w.id === actionSource.workbookId) && (
-                                <DropdownMenuItem key={actionSource.workbookId} onSelect={() => {setTargetWorkbookId(actionSource.workbookId); setTargetSetlistId(null);}}>
-                                    {workbooks.find(w => w.id === actionSource.workbookId)?.name}
-                                </DropdownMenuItem>
-                            )}
-                             {targetableWorkbooks.length === 0 && actionModalMode === 'move' && <DropdownMenuItem disabled>No other workbooks to move to.</DropdownMenuItem>}
+                             {targetableWorkbooks.length === 0 && <DropdownMenuItem disabled>No other workbooks</DropdownMenuItem>}
                           </DropdownMenuContent>
                         </DropdownMenu>
                         <Button variant="outline" size="icon" onClick={() => setIsCreatingWorkbook(true)}><PlusCircle /></Button>
@@ -199,7 +195,7 @@ function MoveCopyDialog() {
 export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   const { 
       setActiveSongId, deleteSong, reorderSongs, openActionModal, 
-      selectedSongIds, handleSelectionChange, handleSelectAll, clearSelection
+      selectedSongIds, handleSelectionChange, handleSelectAll
   } = useAppContext();
   
   const [songs, setSongs] = useState<Song[]>(setlist.songs);
