@@ -8,7 +8,6 @@ import { useToast } from '@/hooks/use-toast';
 
 interface AppContextType {
   workbooks: Workbook[];
-  setWorkbooks: React.Dispatch<React.SetStateAction<Workbook[]>>; // Expose setter
   addWorkbook: (name: string) => string;
   deleteWorkbook: (workbookId: string) => void;
   updateWorkbook: (workbookId: string, updatedWorkbook: Partial<Workbook>) => void;
@@ -81,6 +80,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setlists: [],
     };
     setWorkbooks(prev => [...prev, newWorkbook]);
+    toast({ title: "Workbook Created", description: `"${name}" has been created.` });
     return newWorkbook.id;
   };
 
@@ -92,7 +92,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     const updatedWorkbooks = workbooks.filter(w => w.id !== workbookId);
     setWorkbooks(updatedWorkbooks);
     if (activeWorkbookId === workbookId) {
-      // Use the updatedWorkbooks array to find the new active workbook
       handleSetActiveWorkbookId(updatedWorkbooks[0]?.id || null);
     }
   };
@@ -126,7 +125,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setWorkbooks(finalWorkbooks);
     if(activeSetlistId === setlistId) {
         setActiveSetlistId(null);
+        setActiveWorkbookId(toWorkbookId);
     }
+    toast({
+      title: "Setlist Moved",
+      description: `Successfully moved setlist to new workbook.`,
+    });
   };
 
   const addSetlist = (workbookId: string, name: string): string => {
@@ -136,6 +140,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       songs: [],
     };
     setWorkbooks(prev => prev.map(w => w.id === workbookId ? { ...w, setlists: [...w.setlists, newSetlist] } : w));
+    toast({ title: "Setlist Created", description: `"${name}" has been created.` });
     return newSetlist.id;
   };
 
@@ -262,7 +267,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         
         const copiedSongsWithNewIds = songsToCopy.map(song => ({
           ...song,
-          id: `${Date.now()}-${Math.random()}` // Create a new unique ID
+          id: `${Date.now()}-${Math.random()}`
         }));
 
         const workbooksAfterAddition = currentWorkbooks.map(wb => {
@@ -315,7 +320,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const activeSong = isLoading ? null : activeSetlist?.songs.find(s => s.id === activeSongId) || null;
 
   const value = {
-    workbooks, setWorkbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook,
+    workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook,
     activeWorkbook, setActiveWorkbookId: handleSetActiveWorkbookId, activeWorkbookId,
     setlists, addSetlist, updateSetlist, deleteSetlist,
     activeSetlist, setActiveSetlistId, activeSetlistId,
