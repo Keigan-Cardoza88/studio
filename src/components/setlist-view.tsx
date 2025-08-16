@@ -96,16 +96,18 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     setIsModalOpen(true);
   };
 
-  const handleConfirmAction = () => {
-    if (!modalMode || !targetWorkbookId || !targetSetlistId) {
+  const handleConfirmAction = (finalTargetSetlistId?: string) => {
+    const destSetlistId = finalTargetSetlistId || targetSetlistId;
+
+    if (!modalMode || !targetWorkbookId || !destSetlistId) {
       toast({ title: "Selection Missing", description: "Please select a destination workbook and setlist.", variant: "destructive" });
       return;
     }
 
     if (modalMode === 'move') {
-      moveSongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, targetSetlistId);
+      moveSongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, destSetlistId);
     } else if (modalMode === 'copy') {
-      copySongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, targetSetlistId);
+      copySongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, destSetlistId);
     }
 
     setIsModalOpen(false);
@@ -118,13 +120,15 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
       setTargetWorkbookId(newWorkbookId);
       setNewWorkbookName("");
       setIsCreatingWorkbook(false);
+      setTargetSetlistId(null); // Clear setlist selection after new workbook is created
     }
   }
 
   const handleCreateSetlist = () => {
     if (newSetlistName.trim() && targetWorkbookId) {
       const newSetlistId = addSetlist(targetWorkbookId, newSetlistName.trim());
-      setTargetSetlistId(newSetlistId);
+      // Immediately perform the action with the newly created setlist.
+      handleConfirmAction(newSetlistId);
       setNewSetlistName("");
       setIsCreatingSetlist(false);
     }
@@ -255,6 +259,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
                           onChange={(e) => setNewSetlistName(e.target.value)} 
                           placeholder="New setlist name..."
                           autoFocus
+                          onKeyDown={(e) => e.key === 'Enter' && handleCreateSetlist()}
                         />
                         <Button onClick={handleCreateSetlist}>Create</Button>
                         <Button variant="ghost" onClick={() => setIsCreatingSetlist(false)}>Cancel</Button>
@@ -283,12 +288,10 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="secondary">Cancel</Button></DialogClose>
-                <Button onClick={handleConfirmAction} disabled={!targetSetlistId}>Confirm</Button>
+                <Button onClick={() => handleConfirmAction()} disabled={!targetSetlistId}>Confirm</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
   );
 }
-
-    
