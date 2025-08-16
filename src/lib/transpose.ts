@@ -1,15 +1,8 @@
 
-
 const notesSharp = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const notesFlat = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
-// This regex is designed to be more specific.
-// It captures:
-// 1. Root note: [A-G](?:#|b)?
-// 2. Chord Quality: (?:m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)*
-// 3. Slash chord note: (?:\/[A-G](?:#|b)?)?
-// 4. Trailing non-alphanumeric characters like '*': (\*?)
-const chordRegex = /([A-G](?:#|b)?)([^/ \n\r\[\]]*?)(\/[A-G](?:#|b)?)?(\*?)/g;
+const chordRegex = /([A-G](?:#|b)?)((?:maj|min|m|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)*)((?:\/[A-G](?:#|b)?)?)(\*?)/g;
 
 
 const getNoteIndex = (note: string): number => {
@@ -24,8 +17,11 @@ const transposeNote = (note: string, semitones: number): string => {
     const originalIndex = getNoteIndex(note);
     if (originalIndex === -1) return note; // Not a valid note, return as is.
     const newIndex = (originalIndex + semitones + 12) % 12;
-    // Prefer sharp notes for consistency, unless the original was flat (and no sharp equivalent exists)
-    if (note.includes('b') && !notesSharp.includes(note)) {
+
+    const useFlat = note.includes('b') || 
+                    (note.length > 1 && notesFlat.includes(note) && !notesSharp.includes(note));
+
+    if (useFlat && notesFlat[newIndex].includes('b')) {
          return notesFlat[newIndex];
     }
     return notesSharp[newIndex];
