@@ -163,17 +163,25 @@ export function SetlistSidebar() {
   }
 
   const generateShareLink = async () => {
-    if (!activeWorkbook) return;
+    console.log("DEBUG: generateShareLink started.");
+    if (!activeWorkbook) {
+        console.log("DEBUG: No active workbook, returning.");
+        return;
+    }
     setIsSharing(true);
     setShareUrl('');
     try {
+      console.log("DEBUG: Sharing workbook:", activeWorkbook);
       const id = await shareWorkbook(activeWorkbook);
       const url = `${window.location.origin}/share/${id}`;
+      console.log("DEBUG: Share link generated:", { id, url });
       setShareUrl(url);
     } catch(e) {
+      console.error("DEBUG: Sharing failed with error:", e);
       toast({ title: "Sharing Failed", description: "Could not generate share link. Please try again.", variant: "destructive" });
       setIsShareOpen(false); // Close dialog on failure
     } finally {
+      console.log("DEBUG: Setting isSharing to false.");
       setIsSharing(false);
     }
   };
@@ -453,5 +461,3 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
-
-    
