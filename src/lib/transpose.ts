@@ -3,12 +3,13 @@
 const notesSharp = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const notesFlat = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
-// Regex to match a chord. It captures:
-// 1. The root note (e.g., "C", "F#", "Bb")
-// 2. The chord quality/modifiers (e.g., "m7", "dim", "sus4")
-// 3. An optional bass note for slash chords (e.g., "/G")
-// 4. Any trailing characters like '*' to be ignored during transposition but preserved.
-const chordRegex = /([A-G](?:b|#)?)([^/ \n\r]*?)(\/[A-G](?:b|#)?)?(\*?)/g;
+// This regex is designed to be more specific.
+// It captures:
+// 1. Root note: [A-G](?:#|b)?
+// 2. Chord Quality: (?:m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)*
+// 3. Slash chord note: (?:\/[A-G](?:#|b)?)?
+// 4. Trailing non-alphanumeric characters like '*': (\*?)
+const chordRegex = /([A-G](?:#|b)?)([^/ \n\r\[\]]*?)(\/[A-G](?:#|b)?)?(\*?)/g;
 
 
 const getNoteIndex = (note: string): number => {
@@ -21,9 +22,12 @@ const getNoteIndex = (note: string): number => {
 
 const transposeNote = (note: string, semitones: number): string => {
     const originalIndex = getNoteIndex(note);
-    if (originalIndex === -1) return note; // Not a valid note
+    if (originalIndex === -1) return note; // Not a valid note, return as is.
     const newIndex = (originalIndex + semitones + 12) % 12;
-    // Prefer sharp notes for consistency
+    // Prefer sharp notes for consistency, unless the original was flat (and no sharp equivalent exists)
+    if (note.includes('b') && !notesSharp.includes(note)) {
+         return notesFlat[newIndex];
+    }
     return notesSharp[newIndex];
 };
 
@@ -36,7 +40,7 @@ const transposeSingleChord = (match: string, root: string, quality: string, slas
         const transposedSlashNote = transposeNote(slashNote, semitones);
         transposedSlash = '/' + transposedSlashNote;
     }
-    return `${transposedRoot}${quality}${transposedSlash}${asterisk}`;
+    return `${transposedRoot}${quality || ''}${transposedSlash}${asterisk || ''}`;
 };
 
 
@@ -49,8 +53,8 @@ const isChordLine = (line: string): boolean => {
     // This removes most lyrics, structural markers etc.
     const nonChordChars = trimmedLine
         .replace(/\[[^\]]+\]/g, '') // remove inline chords
-        .replace(/[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7)?(\/[A-G](b|#)?)?/gi, '') // remove valid chord patterns
-        .replace(/[\s/|()-*]/g, ''); // remove separators and formatting
+        .replace(/[A-G](b|#)?(m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)?(\/[A-G](b|#)?)?(\*?)/gi, '') // remove valid chord patterns
+        .replace(/[\s/|()-]/g, ''); // remove separators and formatting
 
     if (nonChordChars.length > 0) {
         return false;
@@ -71,7 +75,8 @@ export const transpose = (lyricsWithChords: string, semitones: number): string =
         // For lines containing only chords, transpose each chord.
         if (isChordLine(line)) {
             return line.replace(chordRegex, (match, root, quality, slash, asterisk) => {
-                return transposeSingleChord(match, root, quality, slash, asterisk, semitones);
+                 if (!root) return match; // If regex somehow matches something not a chord, skip it
+                 return transposeSingleChord(match, root, quality, slash, asterisk, semitones);
             });
         }
         
@@ -79,6 +84,7 @@ export const transpose = (lyricsWithChords: string, semitones: number): string =
         return line.replace(/\[([^\]]+)\]/g, (matchWithBrackets) => {
             const chordInside = matchWithBrackets.substring(1, matchWithBrackets.length - 1);
             const transposedChord = chordInside.replace(chordRegex, (match, root, quality, slash, asterisk) => {
+                 if (!root) return match;
                  return transposeSingleChord(match, root, quality, slash, asterisk, semitones);
             });
             return `[${transposedChord}]`;
