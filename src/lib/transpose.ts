@@ -58,9 +58,8 @@ export function transpose(text: string, semitones: number): string {
 
         return line.replace(lineRegex, (match, bracketedChord, inlineChord) => {
             if (bracketedChord) {
-                // It's a bracketed chord, like [Am]. We transpose the content inside.
-                const chord = bracketedChord.slice(1, -1);
-                return `[${transposeSingleChord(chord, semitones)}]`;
+                // It's a bracketed chord or text, ignore it as requested.
+                return bracketedChord;
             }
             if (inlineChord) {
                 // It's a standalone chord word in the text.
