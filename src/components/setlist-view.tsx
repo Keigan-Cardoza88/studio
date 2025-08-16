@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import type { Setlist, Song, Workbook } from '@/lib/types';
+import type { Setlist, Song } from '@/lib/types';
 import { useAppContext } from '@/contexts/app-provider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,57 +15,188 @@ import { SongEditor } from './song-editor';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
 
-
 interface SetlistViewProps {
   workbookId: string;
   setlist: Setlist;
 }
 
-type ModalMode = 'move' | 'copy';
+function MoveCopyDialog() {
+    const { 
+        workbooks, addWorkbook, addSetlist, 
+        isActionModalOpen, closeActionModal, confirmSongAction,
+        actionModalMode, actionSource, selectedSongIdsForAction 
+    } = useAppContext();
+
+    const [targetWorkbookId, setTargetWorkbookId] = useState<string | null>(null);
+    const [targetSetlistId, setTargetSetlistId] = useState<string | null>(null);
+  
+    const [isCreatingWorkbook, setIsCreatingWorkbook] = useState(false);
+    const [newWorkbookName, setNewWorkbookName] = useState("");
+    const [isCreatingSetlist, setIsCreatingSetlist] = useState(false);
+    const [newSetlistName, setNewSetlistName] = useState("");
+    const { toast } = useToast();
+
+    useEffect(() => {
+        if (!isActionModalOpen) {
+            setTargetWorkbookId(null);
+            setTargetSetlistId(null);
+            setIsCreatingWorkbook(false);
+            setNewWorkbookName("");
+            setIsCreatingSetlist(false);
+            setNewSetlistName("");
+        }
+    }, [isActionModalOpen]);
+
+    const targetableWorkbooks = useMemo(() => {
+        if (actionModalMode === 'move') {
+          return workbooks.filter(wb => wb.id !== actionSource?.workbookId);
+        }
+        return workbooks;
+    }, [workbooks, actionModalMode, actionSource]);
+
+    const targetableSetlists = useMemo(() => {
+        if (!targetWorkbookId) return [];
+        const targetWb = workbooks.find(wb => wb.id === targetWorkbookId);
+        if (!targetWb) return [];
+    
+        if (actionModalMode === 'move' && targetWorkbookId === actionSource?.workbookId) {
+          return targetWb.setlists.filter(s => s.id !== actionSource?.setlistId);
+        }
+        
+        return targetWb.setlists;
+    }, [workbooks, targetWorkbookId, actionModalMode, actionSource]);
+
+    const handleConfirm = () => {
+        if (!targetWorkbookId || !targetSetlistId) {
+          toast({ title: "Selection Missing", description: "Please select a destination workbook and setlist.", variant: "destructive" });
+          return;
+        }
+        confirmSongAction(targetWorkbookId, targetSetlistId);
+    };
+  
+    const handleCreateWorkbook = () => {
+      if (newWorkbookName.trim()) {
+        const newWorkbookId = addWorkbook(newWorkbookName.trim());
+        setTargetWorkbookId(newWorkbookId);
+        setNewWorkbookName("");
+        setIsCreatingWorkbook(false);
+        setTargetSetlistId(null);
+      }
+    }
+  
+    const handleCreateSetlist = () => {
+      if (newSetlistName.trim() && targetWorkbookId) {
+        const newSetlistId = addSetlist(targetWorkbookId, newSetlistName.trim());
+        setTargetSetlistId(newSetlistId);
+        setNewSetlistName("");
+        setIsCreatingSetlist(false);
+      }
+    }
+
+    return (
+        <Dialog open={isActionModalOpen} onOpenChange={closeActionModal}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{actionModalMode === 'move' ? 'Move' : 'Copy'} {selectedSongIdsForAction.length} song(s)</DialogTitle>
+                <DialogDescription>Select the destination for the selected songs.</DialogDescription>
+            </DialogHeader>
+            <div className="grid gap-4 py-4">
+                <div className="space-y-2">
+                    <label className="text-sm font-medium">Destination Workbook</label>
+                    {isCreatingWorkbook ? (
+                      <div className="flex gap-2">
+                        <Input 
+                          value={newWorkbookName} 
+                          onChange={(e) => setNewWorkbookName(e.target.value)} 
+                          placeholder="New workbook name..."
+                          autoFocus
+                          onKeyDown={(e) => e.key === 'Enter' && handleCreateWorkbook()}
+                        />
+                        <Button onClick={handleCreateWorkbook}>Create</Button>
+                        <Button variant="ghost" onClick={() => setIsCreatingWorkbook(false)}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full justify-between">
+                                {workbooks.find(w => w.id === targetWorkbookId)?.name || "Select a workbook"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                            {targetableWorkbooks.map(w => (
+                                <DropdownMenuItem key={w.id} onSelect={() => {setTargetWorkbookId(w.id); setTargetSetlistId(null);}}>
+                                {w.name}
+                                </DropdownMenuItem>
+                            ))}
+                             {targetableWorkbooks.length === 0 && actionModalMode === 'move' && <DropdownMenuItem disabled>No other workbooks to move to.</DropdownMenuItem>}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button variant="outline" size="icon" onClick={() => setIsCreatingWorkbook(true)}><PlusCircle /></Button>
+                      </div>
+                    )}
+                </div>
+                 <div className="space-y-2">
+                    <label className="text-sm font-medium">Destination Setlist</label>
+                     {isCreatingSetlist ? (
+                      <div className="flex gap-2">
+                        <Input 
+                          value={newSetlistName} 
+                          onChange={(e) => setNewSetlistName(e.target.value)} 
+                          placeholder="New setlist name..."
+                          autoFocus
+                          onKeyDown={(e) => e.key === 'Enter' && handleCreateSetlist()}
+                        />
+                        <Button onClick={handleCreateSetlist}>Create</Button>
+                        <Button variant="ghost" onClick={() => setIsCreatingSetlist(false)}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full justify-between" disabled={!targetWorkbookId}>
+                                {workbooks.flatMap(w => w.setlists).find(s => s.id === targetSetlistId)?.name || "Select a setlist"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                            {targetableSetlists.length > 0 ? targetableSetlists.map(s => (
+                                <DropdownMenuItem key={s.id} onSelect={() => setTargetSetlistId(s.id)}>
+                                {s.name}
+                                </DropdownMenuItem>
+                            )) : <DropdownMenuItem disabled>No setlists in this workbook</DropdownMenuItem>}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button variant="outline" size="icon" disabled={!targetWorkbookId} onClick={() => setIsCreatingSetlist(true)}><PlusCircle /></Button>
+                      </div>
+                    )}
+                </div>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild><Button variant="secondary">Cancel</Button></DialogClose>
+                <Button onClick={handleConfirm} disabled={!targetSetlistId}>Confirm</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    );
+}
 
 export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
-  const { workbooks, addWorkbook, addSetlist, setActiveSongId, deleteSong, reorderSongs, moveSongs, copySongs } = useAppContext();
+  const { setActiveSongId, deleteSong, reorderSongs, openActionModal } = useAppContext();
   const [songs, setSongs] = useState<Song[]>(setlist.songs);
   const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [modalMode, setModalMode] = useState<ModalMode | null>(null);
-  const [targetWorkbookId, setTargetWorkbookId] = useState<string | null>(null);
-  const [targetSetlistId, setTargetSetlistId] = useState<string | null>(null);
-  
-  const [isCreatingWorkbook, setIsCreatingWorkbook] = useState(false);
-  const [newWorkbookName, setNewWorkbookName] = useState("");
-  const [isCreatingSetlist, setIsCreatingSetlist] = useState(false);
-  const [newSetlistName, setNewSetlistName] = useState("");
-
   const dragItem = useRef<number | null>(null);
   const dragOverItem = useRef<number | null>(null);
-  const { toast } = useToast();
   
   useEffect(() => {
     setSongs(setlist.songs);
+  }, [setlist.songs]);
+
+  useEffect(() => {
     setSelectedSongIds([]);
-  }, [setlist.songs, setlist.id]);
+  }, [setlist.id]);
   
-  const targetableWorkbooks = useMemo(() => {
-    if (modalMode === 'move') {
-      return workbooks.filter(wb => wb.id !== workbookId);
-    }
-    return workbooks;
-  }, [workbooks, modalMode, workbookId]);
-
-  const targetableSetlists = useMemo(() => {
-    if (!targetWorkbookId) return [];
-    const targetWb = workbooks.find(wb => wb.id === targetWorkbookId);
-    if (!targetWb) return [];
-
-    if (modalMode === 'move' && targetWorkbookId === workbookId) {
-      return targetWb.setlists.filter(s => s.id !== setlist.id);
-    }
-    
-    return targetWb.setlists;
-  }, [workbooks, targetWorkbookId, modalMode, workbookId, setlist.id]);
-
-
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
     if (selectedSongIds.length > 0) {
       e.preventDefault();
@@ -103,52 +234,6 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     setSelectedSongIds(isChecked ? songs.map(s => s.id) : []);
   };
   
-  const openActionModal = (mode: ModalMode) => {
-    setModalMode(mode);
-    setTargetWorkbookId(null);
-    setTargetSetlistId(null);
-    setIsCreatingWorkbook(false);
-    setNewWorkbookName("");
-    setIsCreatingSetlist(false);
-    setNewSetlistName("");
-    setIsModalOpen(true);
-  };
-
-  const handleConfirmAction = () => {
-    if (!modalMode || !targetWorkbookId || !targetSetlistId || selectedSongIds.length === 0) {
-      toast({ title: "Selection Missing", description: "Please select destination and at least one song.", variant: "destructive" });
-      return;
-    }
-    
-    if (modalMode === 'move') {
-      moveSongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, targetSetlistId);
-    } else {
-      copySongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, targetSetlistId);
-    }
-
-    setIsModalOpen(false);
-    setSelectedSongIds([]);
-  };
-
-  const handleCreateWorkbook = () => {
-    if (newWorkbookName.trim()) {
-      const newWorkbookId = addWorkbook(newWorkbookName.trim());
-      setTargetWorkbookId(newWorkbookId);
-      setNewWorkbookName("");
-      setIsCreatingWorkbook(false);
-      setTargetSetlistId(null);
-    }
-  }
-
-  const handleCreateSetlist = () => {
-    if (newSetlistName.trim() && targetWorkbookId) {
-      const newSetlistId = addSetlist(targetWorkbookId, newSetlistName.trim());
-      setTargetSetlistId(newSetlistId);
-      setNewSetlistName("");
-      setIsCreatingSetlist(false);
-    }
-  }
-
   const isSelectionMode = selectedSongIds.length > 0;
   const allSongsSelected = songs.length > 0 && selectedSongIds.length === songs.length;
 
@@ -174,8 +259,8 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
         <div className="flex gap-2 flex-wrap">
           {isSelectionMode ? (
               <>
-                  <Button onClick={() => openActionModal('move')}><Move className="mr-2"/> Move</Button>
-                  <Button onClick={() => openActionModal('copy')}><Copy className="mr-2"/> Copy</Button>
+                  <Button onClick={() => openActionModal('move', workbookId, setlist.id, selectedSongIds)}><Move className="mr-2"/> Move</Button>
+                  <Button onClick={() => openActionModal('copy', workbookId, setlist.id, selectedSongIds)}><Copy className="mr-2"/> Copy</Button>
               </>
           ) : (
             <SongEditor workbookId={workbookId} setlistId={setlist.id} />
@@ -224,91 +309,9 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
           </div>
         )}
       </div>
-      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>{modalMode === 'move' ? 'Move' : 'Copy'} {selectedSongIds.length} song(s)</DialogTitle>
-                <DialogDescription>Select the destination for the selected songs.</DialogDescription>
-            </DialogHeader>
-            <div className="grid gap-4 py-4">
-                <div className="space-y-2">
-                    <label className="text-sm font-medium">Destination Workbook</label>
-                    {isCreatingWorkbook ? (
-                      <div className="flex gap-2">
-                        <Input 
-                          value={newWorkbookName} 
-                          onChange={(e) => setNewWorkbookName(e.target.value)} 
-                          placeholder="New workbook name..."
-                          autoFocus
-                          onKeyDown={(e) => e.key === 'Enter' && handleCreateWorkbook()}
-                        />
-                        <Button onClick={handleCreateWorkbook}>Create</Button>
-                        <Button variant="ghost" onClick={() => setIsCreatingWorkbook(false)}>Cancel</Button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-full justify-between">
-                                {workbooks.find(w => w.id === targetWorkbookId)?.name || "Select a workbook"}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                            {targetableWorkbooks.map(w => (
-                                <DropdownMenuItem key={w.id} onSelect={() => {setTargetWorkbookId(w.id); setTargetSetlistId(null);}}>
-                                {w.name}
-                                </DropdownMenuItem>
-                            ))}
-                             {targetableWorkbooks.length === 0 && modalMode === 'move' && <DropdownMenuItem disabled>No other workbooks to move to.</DropdownMenuItem>}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                        <Button variant="outline" size="icon" onClick={() => setIsCreatingWorkbook(true)}><PlusCircle /></Button>
-                      </div>
-                    )}
-                </div>
-                 <div className="space-y-2">
-                    <label className="text-sm font-medium">Destination Setlist</label>
-                     {isCreatingSetlist ? (
-                      <div className="flex gap-2">
-                        <Input 
-                          value={newSetlistName} 
-                          onChange={(e) => setNewSetlistName(e.target.value)} 
-                          placeholder="New setlist name..."
-                          autoFocus
-                          onKeyDown={(e) => e.key === 'Enter' && handleCreateSetlist()}
-                        />
-                        <Button onClick={handleCreateSetlist}>Create</Button>
-                        <Button variant="ghost" onClick={() => setIsCreatingSetlist(false)}>Cancel</Button>
-                      </div>
-                    ) : (
-                      <div className="flex gap-2">
-                        <DropdownMenu>
-                            <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-full justify-between" disabled={!targetWorkbookId}>
-                                {targetableSetlists.find(s => s.id === targetSetlistId)?.name || "Select a setlist"}
-                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                            </DropdownMenuTrigger>
-                            <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                            {targetableSetlists.length > 0 ? targetableSetlists.map(s => (
-                                <DropdownMenuItem key={s.id} onSelect={() => setTargetSetlistId(s.id)}>
-                                {s.name}
-                                </DropdownMenuItem>
-                            )) : <DropdownMenuItem disabled>No setlists in this workbook</DropdownMenuItem>}
-                            </DropdownMenuContent>
-                        </DropdownMenu>
-                        <Button variant="outline" size="icon" disabled={!targetWorkbookId} onClick={() => setIsCreatingSetlist(true)}><PlusCircle /></Button>
-                      </div>
-                    )}
-                </div>
-            </div>
-            <DialogFooter>
-                <DialogClose asChild><Button variant="secondary">Cancel</Button></DialogClose>
-                <Button onClick={handleConfirmAction} disabled={!targetSetlistId}>Confirm</Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <MoveCopyDialog />
     </div>
   );
 }
+
+    

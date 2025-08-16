@@ -6,9 +6,10 @@ import type { Setlist, Song, Workbook } from '@/lib/types';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useToast } from '@/hooks/use-toast';
 
+type ModalMode = 'move' | 'copy';
+
 interface AppContextType {
   workbooks: Workbook[];
-  setWorkbooks: (value: Workbook[] | ((val: Workbook[]) => Workbook[])) => void;
   addWorkbook: (name: string) => string;
   deleteWorkbook: (workbookId: string) => void;
   updateWorkbook: (workbookId: string, updatedWorkbook: Partial<Workbook>) => void;
@@ -18,7 +19,6 @@ interface AppContextType {
   setActiveWorkbookId: (id: string | null) => void;
   activeWorkbookId: string | null;
 
-  setlists: Setlist[];
   addSetlist: (workbookId: string, name: string) => string;
   updateSetlist: (workbookId: string, setlistId: string, updatedSetlist: Partial<Setlist>) => void;
   deleteSetlist: (workbookId: string, setlistId: string) => void;
@@ -30,8 +30,6 @@ interface AppContextType {
   addSong: (workbookId: string, setlistId: string, song: Omit<Song, 'id' | 'transpose' | 'scrollSpeed'>) => void;
   updateSong: (workbookId: string, setlistId: string, songId: string, updatedSong: Partial<Song>) => void;
   deleteSong: (workbookId: string, setlistId: string, songId: string) => void;
-  moveSongs: (sourceWbId: string, sourceSlId: string, songIds: string[], destWbId: string, destSlId: string) => void;
-  copySongs: (sourceWbId: string, sourceSlId: string, songIds: string[], destWbId: string, destSlId: string) => void;
   
   activeSong: Song | null;
   setActiveSongId: (id: string | null) => void;
@@ -40,6 +38,15 @@ interface AppContextType {
   importSetlists: (workbookId: string, importedSetlists: Setlist[]) => void;
   reorderSongs: (workbookId: string, setlistId: string, songs: Song[]) => void;
   isLoading: boolean;
+
+  // State for Move/Copy Modal
+  isActionModalOpen: boolean;
+  actionModalMode: ModalMode | null;
+  actionSource: { workbookId: string; setlistId: string } | null;
+  selectedSongIdsForAction: string[];
+  openActionModal: (mode: ModalMode, sourceWbId: string, sourceSlId: string, songIds: string[]) => void;
+  closeActionModal: () => void;
+  confirmSongAction: (destWbId: string, destSlId: string) => void;
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -54,6 +61,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  // State for the Move/Copy modal
+  const [isActionModalOpen, setIsActionModalOpen] = useState(false);
+  const [actionModalMode, setActionModalMode] = useState<ModalMode | null>(null);
+  const [selectedSongIdsForAction, setSelectedSongIdsForAction] = useState<string[]>([]);
+  const [actionSource, setActionSource] = useState<{ workbookId: string; setlistId: string } | null>(null);
+
   useEffect(() => {
     const timer = setTimeout(() => {
       if (workbooks.length === 0) {
@@ -66,7 +79,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }, 500);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSetActiveWorkbookId = useCallback((id: string | null) => {
     setActiveWorkbookId(id);
@@ -90,11 +103,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
       toast({ title: "Cannot delete the last workbook", variant: "destructive" });
       return;
     }
+    const workbookName = workbooks.find(w => w.id === workbookId)?.name || 'workbook';
     const updatedWorkbooks = workbooks.filter(w => w.id !== workbookId);
     setWorkbooks(updatedWorkbooks);
     if (activeWorkbookId === workbookId) {
       handleSetActiveWorkbookId(updatedWorkbooks[0]?.id || null);
     }
+     toast({ title: "Workbook Deleted", description: `"${workbookName}" has been deleted.` });
   };
 
   const updateWorkbook = (workbookId: string, updatedWorkbook: Partial<Workbook>) => {
@@ -230,98 +245,113 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
-  const performSongAction = (
-    sourceWbId: string,
-    sourceSlId: string,
-    songIds: string[],
-    destWbId: string,
-    destSlId: string,
-    mode: 'move' | 'copy'
-  ) => {
-    let songsToProcess: Song[] = [];
-    const songIdsSet = new Set(songIds);
+  const openActionModal = (mode: ModalMode, sourceWbId: string, sourceSlId: string, songIds: string[]) => {
+    if (songIds.length === 0) {
+      toast({ title: 'No songs selected', description: 'Please select one or more songs to ' + mode, variant: 'destructive' });
+      return;
+    }
+    setActionModalMode(mode);
+    setSelectedSongIdsForAction(songIds);
+    setActionSource({ workbookId: sourceWbId, setlistId: sourceSlId });
+    setIsActionModalOpen(true);
+  };
 
-    const sourceWorkbook = workbooks.find(wb => wb.id === sourceWbId);
-    const sourceSetlist = sourceWorkbook?.setlists.find(sl => sl.id === sourceSlId);
+  const closeActionModal = () => {
+    setIsActionModalOpen(false);
+    setActionModalMode(null);
+    setSelectedSongIdsForAction([]);
+    setActionSource(null);
+  };
+
+  const confirmSongAction = (destWbId: string, destSlId: string) => {
+    if (!actionModalMode || !actionSource || selectedSongIdsForAction.length === 0) {
+      toast({ title: "Error", description: "Missing required information for action.", variant: "destructive" });
+      closeActionModal();
+      return;
+    }
+
+    let songsToProcess: Song[] = [];
+    const songIdsSet = new Set(selectedSongIdsForAction);
+
+    const sourceWorkbook = workbooks.find(wb => wb.id === actionSource.workbookId);
+    const sourceSetlist = sourceWorkbook?.setlists.find(sl => sl.id === actionSource.setlistId);
 
     if (!sourceSetlist) {
       toast({ title: "Error", description: "Source setlist not found.", variant: "destructive" });
+      closeActionModal();
       return;
     }
 
     songsToProcess = sourceSetlist.songs.filter(song => songIdsSet.has(song.id));
     if (songsToProcess.length === 0) {
       toast({ title: "Error", description: "Source songs not found.", variant: "destructive" });
+      closeActionModal();
       return;
     }
-
+    
     setWorkbooks(currentWorkbooks => {
-      let updatedWorkbooks = [...currentWorkbooks];
+        let updatedWorkbooks = [...currentWorkbooks];
 
-      // Add songs to destination
-      updatedWorkbooks = updatedWorkbooks.map(wb => {
-        if (wb.id === destWbId) {
-          const destSetlists = wb.setlists.map(sl => {
-            if (sl.id === destSlId) {
-              const songsToAdd = mode === 'copy'
-                ? songsToProcess.map(song => ({ ...song, id: `${Date.now()}-${Math.random()}` }))
-                : songsToProcess;
-              return { ...sl, songs: [...sl.songs, ...songsToAdd] };
-            }
-            return sl;
-          });
-          return { ...wb, setlists: destSetlists };
-        }
-        return wb;
-      });
-
-      // Remove songs from source if moving
-      if (mode === 'move') {
+        // Add songs to destination
         updatedWorkbooks = updatedWorkbooks.map(wb => {
-          if (wb.id === sourceWbId) {
-            const sourceSetlists = wb.setlists.map(sl => {
-              if (sl.id === sourceSlId) {
-                const remainingSongs = sl.songs.filter(song => !songIdsSet.has(song.id));
-                return { ...sl, songs: remainingSongs };
+          if (wb.id === destWbId) {
+            const destSetlists = wb.setlists.map(sl => {
+              if (sl.id === destSlId) {
+                const songsToAdd = actionModalMode === 'copy'
+                  ? songsToProcess.map(song => ({ ...song, id: `${Date.now()}-${Math.random()}` }))
+                  : songsToProcess;
+                return { ...sl, songs: [...sl.songs, ...songsToAdd] };
               }
               return sl;
             });
-            return { ...wb, setlists: sourceSetlists };
+            return { ...wb, setlists: destSetlists };
           }
           return wb;
         });
-      }
-
-      return updatedWorkbooks;
-    });
-
-    toast({
-      title: `Songs ${mode === 'move' ? 'Moved' : 'Copied'}`,
-      description: `${songsToProcess.length} song(s) transferred successfully.`,
-    });
-  };
-
-  const moveSongs = (sourceWbId: string, sourceSlId: string, songIds: string[], destWbId: string, destSlId: string) => {
-    performSongAction(sourceWbId, sourceSlId, songIds, destWbId, destSlId, 'move');
-  };
-
-  const copySongs = (sourceWbId: string, sourceSlId: string, songIds: string[], destWbId: string, destSlId: string) => {
-    performSongAction(sourceWbId, sourceSlId, songIds, destWbId, destSlId, 'copy');
+  
+        // Remove songs from source if moving
+        if (actionModalMode === 'move') {
+          updatedWorkbooks = updatedWorkbooks.map(wb => {
+            if (wb.id === actionSource.workbookId) {
+              const sourceSetlists = wb.setlists.map(sl => {
+                if (sl.id === actionSource.setlistId) {
+                  const remainingSongs = sl.songs.filter(song => !songIdsSet.has(song.id));
+                  return { ...sl, songs: remainingSongs };
+                }
+                return sl;
+              });
+              return { ...wb, setlists: sourceSetlists };
+            }
+            return wb;
+          });
+        }
+  
+        return updatedWorkbooks;
+      });
+  
+      toast({
+        title: `Songs ${actionModalMode === 'move' ? 'Moved' : 'Copied'}`,
+        description: `${songsToProcess.length} song(s) transferred successfully.`,
+      });
+      closeActionModal();
   };
 
   const activeWorkbook = isLoading ? null : workbooks.find(w => w.id === activeWorkbookId) || null;
-  const setlists = activeWorkbook?.setlists || [];
-  const activeSetlist = isLoading ? null : setlists.find(s => s.id === activeSetlistId) || null;
+  const activeSetlist = isLoading ? null : activeWorkbook?.setlists.find(s => s.id === activeSetlistId) || null;
   const activeSong = isLoading ? null : activeSetlist?.songs.find(s => s.id === activeSongId) || null;
 
   const value = {
-    workbooks, setWorkbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook,
+    workbooks, setWorkbooks: setWorkbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook,
     activeWorkbook, setActiveWorkbookId: handleSetActiveWorkbookId, activeWorkbookId,
-    setlists, addSetlist, updateSetlist, deleteSetlist,
+    setlists: activeWorkbook?.setlists || [], addSetlist, updateSetlist, deleteSetlist,
     activeSetlist, setActiveSetlistId, activeSetlistId,
-    addSong, updateSong, deleteSong, moveSongs, copySongs,
+    addSong, updateSong, deleteSong,
     activeSong, setActiveSongId, activeSongId,
+
     importSetlists, reorderSongs, isLoading,
+    
+    isActionModalOpen, actionModalMode, actionSource, selectedSongIdsForAction,
+    openActionModal, closeActionModal, confirmSongAction,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
@@ -334,3 +364,5 @@ export function useAppContext() {
   }
   return context;
 }
+
+    
