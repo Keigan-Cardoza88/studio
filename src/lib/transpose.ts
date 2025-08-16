@@ -1,4 +1,5 @@
 
+
 const notesSharp = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const notesFlat = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
 
@@ -31,39 +32,33 @@ const transposeNote = (note: string, semitones: number): string => {
 
 const isValidChord = (word: string): boolean => {
     if (!word) return false;
-    
-    // Regex to find a valid root note (C, C#, Db, etc.)
-    const rootMatch = word.match(/^[A-G](b|#)?/);
-    if (!rootMatch) return false;
 
+    // Match the root note, which can be one or two characters (e.g., C, C#, Db).
+    const rootMatch = word.match(/^[A-G](b|#)?/);
+    if (!rootMatch) {
+        return false; // Doesn't even start with a note.
+    }
+    
     const rootNote = rootMatch[0];
     const restOfString = word.substring(rootNote.length);
 
-    // If the word is just the root note, it's a valid chord.
-    if (restOfString.length === 0) return true;
-
-    // A list of valid chord qualities and extensions that can follow a root note.
-    const validQualities = [
-        'm', 'maj', 'dim', 'aug', 'sus', 'add', 
-        '7', '9', '11', '13', '6', '5', '4', '2',
-        'b', '#', '/', '*',
-        'sus2', 'sus4', 'maj7', 'min7', 'm7',
-    ];
-    
-    // Check if the rest of the string starts with a valid chord quality.
-    // If not, it's a regular word, not a chord.
-    const startsWithValidQuality = validQualities.some(q => restOfString.startsWith(q));
-
-    if (!startsWithValidQuality) {
-        // A special case for chords like C(add9)
-        if (restOfString.startsWith('(') && restOfString.endsWith(')')) return true;
-        return false;
+    // If the word is just the root note, it's a valid chord (e.g., "C", "F#").
+    if (restOfString.length === 0) {
+        return true;
     }
 
-    // Now, ensure ALL characters in the rest of the string are valid chord characters.
-    const validChordCharRegex = /^[mMajAdDimSusAugb#/\d*()]+$/;
+    // If there's more to the word, the character immediately following the root
+    // must be a valid chord modifier. Words like "Chorus" will fail here because 'h' is not valid.
+    const validChordModifiers = "majdimaugsusb#*()/\d";
+    const nextChar = restOfString[0];
+
+    if (validChordModifiers.includes(nextChar) || (nextChar === 'm' && restOfString.startsWith('min'))) {
+         // This is likely a chord. We can be more lenient with the rest of the string
+         // as it's highly unlikely to be a regular word now.
+         return true;
+    }
     
-    return validChordCharRegex.test(restOfString);
+    return false;
 }
 
 
