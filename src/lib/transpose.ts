@@ -1,4 +1,5 @@
 
+
 // This complex regex identifies a musical chord. It breaks down into the following parts:
 // 1. ([A-G](?:#|b)?): Captures the root note (A-G with an optional sharp or flat). This is Group 1.
 // 2. ((?:maj|min|m|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)*): Captures the chord quality (like maj7, sus4, etc.). This is Group 2. This part is complex to catch many variations.
@@ -49,6 +50,12 @@ export function transpose(text: string, semitones: number): string {
     const lineRegex = /(\[.*?\])|(\b[A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)*(?:\/[A-G](?:#|b)?)?\*?\b)/g;
 
     return text.split("\n").map(line => {
+        // We exclude lines that are common labels and not musical instruction
+        const isNonMusicalLabel = /^\s*(chorus|verse|intro|outro|bridge|pre-chorus|interlude|solo|instrumental|capo|key|t(uning)?)\s*[:]?\s*$/i.test(line);
+        if (isNonMusicalLabel) {
+            return line;
+        }
+
         return line.replace(lineRegex, (match, bracketedChord, inlineChord) => {
             if (bracketedChord) {
                 // It's a bracketed chord, like [Am]. We transpose the content inside.
@@ -57,6 +64,10 @@ export function transpose(text: string, semitones: number): string {
             }
             if (inlineChord) {
                 // It's a standalone chord word in the text.
+                // We add an extra check to avoid transposing words like "A", "Am", "Be" in regular text
+                 if (/\b(A|Am|As|B|Be|C|D|E|F|G)\b/i.test(inlineChord) && line.split(/\s+/).length > 4) {
+                    return inlineChord;
+                 }
                 return transposeSingleChord(inlineChord, semitones);
             }
             // Should not happen, but as a fallback, return the original match.
