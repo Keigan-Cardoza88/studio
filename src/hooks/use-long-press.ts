@@ -17,8 +17,8 @@ interface LongPressResult {
 
 export const useLongPress = (
   { onLongPress, onClick }: { 
-    onLongPress: (event: MouseEvent | TouchEvent) => void, 
-    onClick: (event: MouseEvent | TouchEvent) => void 
+    onLongPress: (event: MouseEvent | TouchEvent, target: HTMLElement) => void, 
+    onClick: (event: MouseEvent | TouchEvent, target: HTMLElement) => void 
   },
   { shouldPreventDefault = true, delay = 500 }: LongPressOptions = {}
 ): LongPressResult => {
@@ -28,12 +28,14 @@ export const useLongPress = (
   const start = useCallback(
     (e: MouseEvent | TouchEvent) => {
       isLongPressTriggered.current = false;
-      if (shouldPreventDefault && e.target) {
-        (e.target as HTMLElement).addEventListener('touchend', preventDefault, { passive: false });
-        (e.target as HTMLElement).addEventListener('mouseup', preventDefault, { passive: false });
+      const target = e.currentTarget as HTMLElement;
+
+      if (shouldPreventDefault && target) {
+        target.addEventListener('touchend', preventDefault, { passive: false });
+        target.addEventListener('mouseup', preventDefault, { passive: false });
       }
       longPressTimeout.current = setTimeout(() => {
-        onLongPress(e);
+        onLongPress(e, target);
         isLongPressTriggered.current = true;
       }, delay);
     },
@@ -42,15 +44,16 @@ export const useLongPress = (
 
   const clear = useCallback(
     (e: MouseEvent | TouchEvent, shouldTriggerClick = true) => {
+      const target = e.currentTarget as HTMLElement;
       if (longPressTimeout.current) {
         clearTimeout(longPressTimeout.current);
       }
       if (shouldTriggerClick && !isLongPressTriggered.current) {
-        onClick(e);
+        onClick(e, target);
       }
-      if (shouldPreventDefault && e.target) {
-        (e.target as HTMLElement).removeEventListener('touchend', preventDefault);
-        (e.target as HTMLElement).removeEventListener('mouseup', preventDefault);
+      if (shouldPreventDefault && target) {
+        target.removeEventListener('touchend', preventDefault);
+        target.removeEventListener('mouseup', preventDefault);
       }
     },
     [shouldPreventDefault, onClick]

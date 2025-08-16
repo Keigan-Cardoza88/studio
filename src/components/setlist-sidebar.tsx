@@ -98,7 +98,8 @@ export function SetlistSidebar() {
     workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook, 
     activeWorkbook, setActiveWorkbookId, addSetlist, activeSetlistId, setActiveSetlistId, 
     deleteSetlist, importSetlists, activeWorkbookId, 
-    selectedSetlistIds, handleSetlistSelectionChange, isSetlistSelectionModeActive, setIsSetlistSelectionModeActive
+    selectedSetlistIds, handleSetlistSelectionChange, isSetlistSelectionModeActive, setIsSetlistSelectionModeActive,
+    clearSetlistSelection,
   } = useAppContext();
   const [isNewSetlistOpen, setIsNewSetlistOpen] = React.useState(false);
   const [isNewWorkbookOpen, setIsNewWorkbookOpen] = React.useState(false);
@@ -214,26 +215,28 @@ export function SetlistSidebar() {
   }
   
   const longPressEvents = useLongPress({
-      onLongPress: (e) => {
-        const setlistId = (e.currentTarget as HTMLElement).dataset.setlistId;
+    onLongPress: (e, target) => {
+        if (!target) return;
+        const setlistId = target.dataset.setlistId;
         if (setlistId && !isSetlistSelectionModeActive) {
             setIsSetlistSelectionModeActive(true);
             handleSetlistSelectionChange(setlistId, true);
         }
-      },
-      onClick: (e) => {
-        const setlistId = (e.currentTarget as HTMLElement).dataset.setlistId;
-        const workbookId = (e.currentTarget as HTMLElement).dataset.workbookId;
+    },
+    onClick: (e, target) => {
+        if (!target) return;
+        const setlistId = target.dataset.setlistId;
+        const workbookId = target.dataset.workbookId;
         if (!setlistId || !workbookId) return;
 
         if (isSetlistSelectionModeActive) {
-          handleSetlistSelectionChange(setlistId, !selectedSetlistIds.includes(setlistId));
+            handleSetlistSelectionChange(setlistId, !selectedSetlistIds.includes(setlistId));
         } else {
-          setActiveWorkbookId(workbookId);
-          setActiveSetlistId(setlistId);
+            setActiveWorkbookId(workbookId);
+            setActiveSetlistId(setlistId);
         }
-      }
-    });
+    }
+  });
 
 
   return (
@@ -272,12 +275,15 @@ export function SetlistSidebar() {
                     <div className="flex items-center gap-2 w-full min-w-0">
                        <Music className="h-4 w-4 shrink-0 text-accent" /> 
                        {editingWorkbookId === workbook.id ? (
-                          <div className="flex-1 min-w-0" onClick={(e) => e.stopPropagation()}>
+                          <div className="flex-1 min-w-0" onClick={(e) => e.preventDefault()}>
                             <Input 
                               value={editingWorkbookName}
                               onChange={(e) => setEditingWorkbookName(e.target.value)}
                               onBlur={saveWorkbookName}
-                              onKeyDown={(e) => e.key === 'Enter' && saveWorkbookName()}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') saveWorkbookName();
+                                if (e.key === 'Escape') cancelEditingWorkbook();
+                              }}
                               autoFocus
                               className="h-7 w-full"
                             />
@@ -405,9 +411,19 @@ export function SetlistSidebar() {
       </SidebarContent>
        <SidebarFooter>
         <SidebarMenu>
-            {selectedSetlistIds.length > 1 && (
+            {isSetlistSelectionModeActive && selectedSetlistIds.length > 1 && (
                 <SidebarMenuItem>
                     <MergeSetlistsDialog />
+                </SidebarMenuItem>
+            )}
+            {isSetlistSelectionModeActive && selectedSetlistIds.length > 0 && (
+                <SidebarMenuItem>
+                     <Button variant="ghost" className="w-full justify-start" onClick={() => {
+                       clearSetlistSelection();
+                       setIsSetlistSelectionModeActive(false);
+                     }}>
+                        Cancel Selection
+                    </Button>
                 </SidebarMenuItem>
             )}
             <SidebarMenuItem>
