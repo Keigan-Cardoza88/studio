@@ -22,11 +22,6 @@ interface SetlistViewProps {
 }
 
 type ModalMode = 'move' | 'copy';
-type PendingAction = {
-  mode: ModalMode;
-  targetWorkbookId: string;
-  targetSetlistId: string;
-}
 
 export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   const { workbooks, addWorkbook, addSetlist, setActiveSongId, deleteSong, reorderSongs, moveSongs, copySongs } = useAppContext();
@@ -41,9 +36,6 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   const [newWorkbookName, setNewWorkbookName] = useState("");
   const [isCreatingSetlist, setIsCreatingSetlist] = useState(false);
   const [newSetlistName, setNewSetlistName] = useState("");
-  
-  const [pendingAction, setPendingAction] = useState<PendingAction | null>(null);
-
 
   const dragItem = useRef<number | null>(null);
   const dragOverItem = useRef<number | null>(null);
@@ -53,13 +45,6 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     setSongs(setlist.songs);
     setSelectedSongIds([]);
   }, [setlist.songs, setlist.id]);
-
-  useEffect(() => {
-    if (pendingAction && pendingAction.targetSetlistId) {
-        handleConfirmAction(pendingAction.targetSetlistId);
-        setPendingAction(null);
-    }
-  }, [pendingAction]);
   
   const targetableWorkbooks = useMemo(() => {
     if (modalMode === 'move') {
@@ -79,6 +64,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     
     return targetWb.setlists;
   }, [workbooks, targetWorkbookId, modalMode, workbookId, setlist.id]);
+
 
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
     if (selectedSongIds.length > 0) {
@@ -126,18 +112,16 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     setIsModalOpen(true);
   };
 
-  const handleConfirmAction = (finalTargetSetlistId?: string) => {
-    const destSetlistId = finalTargetSetlistId || targetSetlistId;
-
-    if (!modalMode || !targetWorkbookId || !destSetlistId) {
+  const handleConfirmAction = () => {
+    if (!modalMode || !targetWorkbookId || !targetSetlistId) {
       toast({ title: "Selection Missing", description: "Please select a destination workbook and setlist.", variant: "destructive" });
       return;
     }
 
     if (modalMode === 'move') {
-      moveSongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, destSetlistId);
+      moveSongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, targetSetlistId);
     } else if (modalMode === 'copy') {
-      copySongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, destSetlistId);
+      copySongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, targetSetlistId);
     }
 
     setIsModalOpen(false);
@@ -150,24 +134,19 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
       setTargetWorkbookId(newWorkbookId);
       setNewWorkbookName("");
       setIsCreatingWorkbook(false);
-      setTargetSetlistId(null);
+      setTargetSetlistId(null); // Reset setlist selection
     }
   }
 
   const handleCreateSetlist = () => {
-    if (newSetlistName.trim() && targetWorkbookId && modalMode) {
+    if (newSetlistName.trim() && targetWorkbookId) {
       const newSetlistId = addSetlist(targetWorkbookId, newSetlistName.trim());
       setTargetSetlistId(newSetlistId);
       setNewSetlistName("");
       setIsCreatingSetlist(false);
-
-       setPendingAction({
-        mode: modalMode,
-        targetWorkbookId: targetWorkbookId,
-        targetSetlistId: newSetlistId,
-      });
     }
   }
+
 
   const isSelectionMode = selectedSongIds.length > 0;
   const allSongsSelected = songs.length > 0 && selectedSongIds.length === songs.length;
@@ -244,7 +223,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
           </div>
         )}
       </div>
-      <Dialog open={isModalOpen} onOpenChange={(isOpen) => { setIsModalOpen(isOpen); if (!isOpen) setPendingAction(null); }}>
+      <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
         <DialogContent>
             <DialogHeader>
                 <DialogTitle>{modalMode === 'move' ? 'Move' : 'Copy'} {selectedSongIds.length} song(s)</DialogTitle>
@@ -325,7 +304,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
             </div>
             <DialogFooter>
                 <DialogClose asChild><Button variant="secondary">Cancel</Button></DialogClose>
-                <Button onClick={() => handleConfirmAction()} disabled={!targetSetlistId}>Confirm</Button>
+                <Button onClick={handleConfirmAction} disabled={!targetSetlistId}>Confirm</Button>
             </DialogFooter>
         </DialogContent>
       </Dialog>
