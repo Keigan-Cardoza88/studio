@@ -16,51 +16,12 @@ const transposeNote = (note: string, semitones: number): string => {
     if (originalIndex === -1) return note;
     const newIndex = (originalIndex + semitones + 12) % 12;
 
-    const preferFlat = note.includes('b');
-    
-    // Heuristic: Prefer sharp unless original was flat or it's a common flat key note
-    if (preferFlat && notesFlat[newIndex].includes('b')) {
+    // Prefer sharp unless original was flat
+    if (note.includes('b')) {
       return notesFlat[newIndex];
     }
-    if (!note.includes('b') && notesSharp.includes(note)) {
-         return notesSharp[newIndex];
-    }
-    
-    return notesFlat[newIndex] ? notesFlat[newIndex] : notesSharp[newIndex];
+    return notesSharp[newIndex];
 };
-
-
-const isValidChord = (word: string): boolean => {
-    if (!word) return false;
-
-    // Match the root note, which can be one or two characters (e.g., C, C#, Db).
-    const rootMatch = word.match(/^[A-G](b|#)?/);
-    if (!rootMatch) {
-        return false; // Doesn't even start with a note.
-    }
-    
-    const rootNote = rootMatch[0];
-    const restOfString = word.substring(rootNote.length);
-
-    // If the word is just the root note, it's a valid chord (e.g., "C", "F#").
-    if (restOfString.length === 0) {
-        return true;
-    }
-
-    // If there's more to the word, the character immediately following the root
-    // must be a valid chord modifier. Words like "Chorus" will fail here because 'h' is not valid.
-    const validChordModifiers = "majdimaugsusb#*()/\d";
-    const nextChar = restOfString[0];
-
-    if (validChordModifiers.includes(nextChar) || (nextChar === 'm' && restOfString.startsWith('min'))) {
-         // This is likely a chord. We can be more lenient with the rest of the string
-         // as it's highly unlikely to be a regular word now.
-         return true;
-    }
-    
-    return false;
-}
-
 
 const transposeChord = (chord: string, semitones: number): string => {
     if (!chord) return "";
@@ -87,6 +48,25 @@ const transposeChord = (chord: string, semitones: number): string => {
     
     return `${transposedRoot}${rest}`;
 };
+
+// Based on user's suggestion
+const validModifiers = ["m", "maj", "min", "dim", "aug", "sus", "add", "7", "9", "11", "13", "6", "#", "b", "/", "*", "("];
+const isValidChord = (word: string): boolean => {
+    if (!word) return false;
+
+    const rootMatch = word.match(/^[A-G](b|#)?/);
+    if (!rootMatch) return false;
+
+    const rootNote = rootMatch[0];
+    const restOfString = word.substring(rootNote.length);
+
+    if (restOfString.length === 0) return true;
+
+    // Check if the rest of the string starts with a known modifier
+    // This prevents words like "Chorus" from being matched.
+    return validModifiers.some(mod => restOfString.startsWith(mod));
+};
+
 
 export const transpose = (lyricsWithChords: string, semitones: number): string => {
     if (semitones === 0) return lyricsWithChords;
