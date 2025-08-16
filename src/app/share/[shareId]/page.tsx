@@ -8,14 +8,14 @@ import { AppProvider, useAppContext } from '@/contexts/app-provider';
 import type { Workbook } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, ShieldCheck, Share2 } from 'lucide-react';
+import { Loader2, ShieldCheck, Share2, Merge } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 function SharePageContent() {
     const router = useRouter();
     const params = useParams();
     const { shareId } = params;
-    const { importSharedWorkbook, workbooks } = useAppContext();
+    const { workbooks, importSharedWorkbook, mergeImportedWorkbook } = useAppContext();
     const { toast } = useToast();
     
     const [workbook, setWorkbook] = useState<Workbook | null>(null);
@@ -48,11 +48,7 @@ function SharePageContent() {
         if (workbook) {
             const existing = workbooks.find(w => w.id === workbook.id);
             if (existing) {
-                 toast({
-                    title: "Workbook Already Exists",
-                    description: `You already have "${workbook.name}". No need to import again.`,
-                    variant: "default",
-                });
+                 mergeImportedWorkbook(workbook);
             } else {
                 importSharedWorkbook(workbook);
             }
@@ -112,14 +108,19 @@ function SharePageContent() {
                     {existingWorkbook && (
                         <div className="flex items-center justify-center gap-2 text-sm text-green-500 bg-green-500/10 p-2 rounded-md">
                            <ShieldCheck className="h-4 w-4" />
-                           <span>You already have this workbook.</span>
+                           <span>This workbook already exists. New setlists will be merged.</span>
                         </div>
                     )}
                 </CardContent>
                 <CardFooter className="flex flex-col sm:flex-row gap-2">
                     <Button variant="outline" onClick={handleCancel} className="w-full">Cancel</Button>
                     <Button onClick={handleImport} className="w-full">
-                        {existingWorkbook ? 'Go to Workbook' : 'Import Now'}
+                        {existingWorkbook ? (
+                            <>
+                                <Merge className="mr-2 h-4 w-4"/>
+                                Merge & Update
+                            </>
+                        ) : 'Import Now'}
                     </Button>
                 </CardFooter>
             </Card>
