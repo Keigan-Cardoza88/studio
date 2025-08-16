@@ -124,11 +124,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // Clear song selection when changing setlists
   useEffect(() => {
     clearSongSelection();
+    setIsSongSelectionModeActive(false);
   }, [activeSetlistId]);
 
   // Clear setlist selection when changing workbooks
   useEffect(() => {
     clearSetlistSelection();
+    setIsSetlistSelectionModeActive(false);
   }, [activeWorkbookId]);
 
 
@@ -331,9 +333,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const handleSelectAllSongs = (songs: Song[], isChecked: boolean) => {
     setSelectedSongIds(isChecked ? songs.map(s => s.id) : []);
   };
-  const clearSongSelection = () => {
+  const clearSongSelection = useCallback(() => {
     setSelectedSongIds([]);
-  }
+  },[]);
   // --- End: Song Selection logic ---
 
   // --- Start: Setlist Selection logic ---
@@ -342,9 +344,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       isChecked ? [...prev, setlistId] : prev.filter(id => id !== setlistId)
     );
   };
-  const clearSetlistSelection = () => {
+  const clearSetlistSelection = useCallback(() => {
     setSelectedSetlistIds([]);
-  };
+  }, []);
   // --- End: Setlist Selection logic ---
 
 
@@ -435,6 +437,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         description: `${songsToProcess.length} song(s) transferred successfully.`,
       });
       clearSongSelection();
+      setIsSongSelectionModeActive(false);
       closeActionModal();
   };
 
@@ -469,3 +472,5 @@ export function useAppContext() {
   }
   return context;
 }
+
+    
