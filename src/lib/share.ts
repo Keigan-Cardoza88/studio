@@ -1,5 +1,5 @@
 
-import { doc, setDoc, getDoc, collection, addDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, addDoc } from 'firebase/firestore';
 import { db } from './firebase';
 import type { Workbook } from './types';
 
