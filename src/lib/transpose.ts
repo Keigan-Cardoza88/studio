@@ -12,88 +12,61 @@ const getNoteIndex = (note: string): number => {
 };
 
 const transposeNote = (note: string, semitones: number): string => {
+    if (!note) return "";
     const originalIndex = getNoteIndex(note);
     if (originalIndex === -1) return note;
-    const newIndex = (originalIndex + semitones + 12) % 12;
 
-    // Prefer sharp unless original was flat
-    if (note.includes('b')) {
+    const newIndex = (originalIndex + semitones + 12) % 12;
+    
+    // Default to sharps, but use flats if the original note was flat or in a list of common flat keys
+    // This is a heuristic to make chords more readable.
+    const commonFlatNotes = ["F", "Bb", "Eb", "Ab", "Db", "Gb"];
+    if (note.includes('b') || commonFlatNotes.includes(note)) {
       return notesFlat[newIndex];
     }
     return notesSharp[newIndex];
 };
 
-const transposeChord = (chord: string, semitones: number): string => {
-    if (!chord) return "";
-    
-    const rootMatch = chord.match(/^[A-G](?:#|b)?/);
-    if (!rootMatch) return chord; 
-    
-    const root = rootMatch[0];
-    const rest = chord.substring(root.length);
-    let transposedRoot = transposeNote(root, semitones);
-    
-    // Handle slash chords: find and transpose the bass note as well
-    if (rest.includes('/')) {
-        const parts = rest.split('/');
-        const quality = parts[0];
-        const bassNoteMatch = parts[1].match(/^[A-G](?:#|b)?/);
-        if (bassNoteMatch) {
-            const bassNote = bassNoteMatch[0];
-            const bassNoteRest = parts[1].substring(bassNote.length);
-            const transposedBass = transposeNote(bassNote, semitones);
-            return `${transposedRoot}${quality}/${transposedBass}${bassNoteRest}`;
-        }
-    }
-    
-    return `${transposedRoot}${rest}`;
-};
 
-// Based on user's suggestion
-const validModifiers = ["m", "maj", "min", "dim", "aug", "sus", "add", "7", "9", "11", "13", "6", "#", "b", "/", "*", "("];
-const isValidChord = (word: string): boolean => {
-    if (!word) return false;
-
-    const rootMatch = word.match(/^[A-G](b|#)?/);
-    if (!rootMatch) return false;
-
-    const rootNote = rootMatch[0];
-    const restOfString = word.substring(rootNote.length);
-
-    if (restOfString.length === 0) return true;
-
-    // Check if the rest of the string starts with a known modifier
-    // This prevents words like "Chorus" from being matched.
-    return validModifiers.some(mod => restOfString.startsWith(mod));
-};
+const chordRegex = /\[([^\]]+)\]|([A-G](?:#|b)?(?:m|maj|min|dim|aug|sus|add|m7|maj7|7|6|9|11|13|b5|#9|add9|sus2|sus4)?(?:(?:\/[A-G](?:#|b)?))?)(?![a-z])/g;
 
 
 export const transpose = (lyricsWithChords: string, semitones: number): string => {
-    if (semitones === 0) return lyricsWithChords;
-    
-    return lyricsWithChords.split('\n').map(line => {
-        // First, handle bracketed chords like [Am]
-        let processedLine = line.replace(/\[([^\]]+)\]/g, (match, chord) => {
-            return `[${transposeChord(chord, semitones)}]`;
-        });
+    if (semitones === 0 || !lyricsWithChords) return lyricsWithChords;
+
+    const transposeChord = (chord: string): string => {
+        if (!chord) return "";
+
+        const [fullMatch, root, quality, bass] = chord.match(/^([A-G](?:#|b)?)([^/]*)(?:\/([A-G](?:#|b)?))?$/) || [];
         
-        // Split the line into parts: bracketed chords and text in between.
-        const parts = processedLine.split(/(\[[^\]]+\])/);
+        if (!root) return chord;
+        
+        const transposedRoot = transposeNote(root, semitones);
+        const transposedBass = transposeNote(bass, semitones);
 
-        return parts.map(part => {
-            // If the part is an already-transposed inline chord, leave it alone.
-            if (part.startsWith('[') && part.endsWith(']')) {
-                return part;
-            }
+        return `${transposedRoot}${quality || ''}${transposedBass ? `/${transposedBass}` : ''}`;
+    }
 
-            // For text parts, split by space to check for standalone chords.
-            return part.split(/(\s+)/).map(word => {
-                if (isValidChord(word)) {
-                    return transposeChord(word, semitones);
-                }
-                return word;
-            }).join('');
+    const processLine = (line: string): string => {
+        // Handle bracketed chords e.g. [Am]
+        let pass1 = line.replace(/\[([^\]]+)\]/g, (match, chord) => `[${transposeChord(chord)}]`);
+        
+        // Handle standalone chords on a line
+        const isChordLine = pass1.split(/\s+/).every(word => {
+            if (!word) return true; // ignore empty strings from multiple spaces
+            const rootMatch = word.match(/^[A-G](b|#)?/);
+            if (!rootMatch) return false; // not a chord if it doesn't start with a note
+            // If the rest of the string contains letters other than m,a,j,i,n,d,s,u,g,b,#
+            const rest = word.substring(rootMatch[0].length);
+            return !/[h-l|o-r|t|v-z]/.test(rest.toLowerCase());
+        });
 
-        }).join('');
-    }).join('\n');
+        if (isChordLine) {
+           return pass1.split(/(\s+)/).map(transposeChord).join('');
+        }
+
+        return pass1;
+    }
+
+    return lyricsWithChords.split('\n').map(processLine).join('\n');
 };
