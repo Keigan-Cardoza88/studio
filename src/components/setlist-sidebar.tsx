@@ -176,13 +176,12 @@ export function SetlistSidebar() {
       const url = `${window.location.origin}/share/${id}`;
       console.log("DEBUG: Share link generated:", { id, url });
       setShareUrl(url);
+      setIsSharing(false);
     } catch(e) {
       console.error("DEBUG: Sharing failed with error:", e);
       toast({ title: "Sharing Failed", description: "Could not generate share link. Please try again.", variant: "destructive" });
+      setIsSharing(false); // Also stop loading on failure
       setIsShareOpen(false); // Close dialog on failure
-    } finally {
-      console.log("DEBUG: Setting isSharing to false.");
-      setIsSharing(false);
     }
   };
 
