@@ -6,10 +6,11 @@ import type { Setlist, Song, Workbook } from '@/lib/types';
 import { useAppContext } from '@/contexts/app-provider';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose } from '@/components/ui/dialog';
-import { GripVertical, Music, Trash2, Move, Copy, ChevronsUpDown } from 'lucide-react';
+import { GripVertical, Music, Trash2, Move, Copy, ChevronsUpDown, PlusCircle } from 'lucide-react';
 import { SongEditor } from './song-editor';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -21,13 +22,19 @@ interface SetlistViewProps {
 }
 
 export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
-  const { workbooks, setActiveSongId, deleteSong, reorderSongs, moveSongs, copySongs } = useAppContext();
+  const { workbooks, addWorkbook, addSetlist, setActiveSongId, deleteSong, reorderSongs, moveSongs, copySongs } = useAppContext();
   const [songs, setSongs] = useState<Song[]>(setlist.songs);
   const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'move' | 'copy' | null>(null);
   const [targetWorkbookId, setTargetWorkbookId] = useState<string | null>(null);
   const [targetSetlistId, setTargetSetlistId] = useState<string | null>(null);
+  
+  const [isCreatingWorkbook, setIsCreatingWorkbook] = useState(false);
+  const [newWorkbookName, setNewWorkbookName] = useState("");
+  const [isCreatingSetlist, setIsCreatingSetlist] = useState(false);
+  const [newSetlistName, setNewSetlistName] = useState("");
+
 
   const dragItem = useRef<number | null>(null);
   const dragOverItem = useRef<number | null>(null);
@@ -105,12 +112,30 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     setSelectedSongIds([]);
   };
 
+  const handleCreateWorkbook = () => {
+    if (newWorkbookName.trim()) {
+      const newWorkbookId = addWorkbook(newWorkbookName.trim());
+      setTargetWorkbookId(newWorkbookId);
+      setNewWorkbookName("");
+      setIsCreatingWorkbook(false);
+    }
+  }
+
+  const handleCreateSetlist = () => {
+    if (newSetlistName.trim() && targetWorkbookId) {
+      const newSetlistId = addSetlist(targetWorkbookId, newSetlistName.trim());
+      setTargetSetlistId(newSetlistId);
+      setNewSetlistName("");
+      setIsCreatingSetlist(false);
+    }
+  }
+
   const isSelectionMode = selectedSongIds.length > 0;
   const allSongsSelected = songs.length > 0 && selectedSongIds.length === songs.length;
 
   return (
     <div className="mt-10">
-      <div className="flex justify-between items-center mb-6">
+      <div className="flex flex-wrap justify-between items-center mb-6 gap-4">
         <div className="flex items-center gap-4">
            {songs.length > 0 && (
              <Checkbox
@@ -127,14 +152,16 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
               </p>
            </div>
         </div>
-        {isSelectionMode ? (
-            <div className="flex gap-2">
-                <Button onClick={() => openActionModal('move')}><Move className="mr-2"/> Move</Button>
-                <Button onClick={() => openActionModal('copy')}><Copy className="mr-2"/> Copy</Button>
-            </div>
-        ) : (
-           <SongEditor workbookId={workbookId} setlistId={setlist.id} />
-        )}
+        <div className="flex gap-2 flex-wrap">
+          {isSelectionMode ? (
+              <>
+                  <Button onClick={() => openActionModal('move')}><Move className="mr-2"/> Move</Button>
+                  <Button onClick={() => openActionModal('copy')}><Copy className="mr-2"/> Copy</Button>
+              </>
+          ) : (
+            <SongEditor workbookId={workbookId} setlistId={setlist.id} />
+          )}
+        </div>
       </div>
       <div className="space-y-2">
         {songs.length > 0 ? (
@@ -185,41 +212,73 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
                 <DialogDescription>Select the destination for the selected songs.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-                <div className="grid gap-2">
+                <div className="space-y-2">
                     <label className="text-sm font-medium">Destination Workbook</label>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between">
-                            {targetableWorkbooks.find(w => w.id === targetWorkbookId)?.name || "Select a workbook"}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                        {targetableWorkbooks.map(w => (
-                            <DropdownMenuItem key={w.id} onSelect={() => {setTargetWorkbookId(w.id); setTargetSetlistId(null);}}>
-                            {w.name}
-                            </DropdownMenuItem>
-                        ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                    {isCreatingWorkbook ? (
+                      <div className="flex gap-2">
+                        <Input 
+                          value={newWorkbookName} 
+                          onChange={(e) => setNewWorkbookName(e.target.value)} 
+                          placeholder="New workbook name..."
+                          autoFocus
+                        />
+                        <Button onClick={handleCreateWorkbook}>Create</Button>
+                        <Button variant="ghost" onClick={() => setIsCreatingWorkbook(false)}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full justify-between">
+                                {targetableWorkbooks.find(w => w.id === targetWorkbookId)?.name || "Select a workbook"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                            {targetableWorkbooks.map(w => (
+                                <DropdownMenuItem key={w.id} onSelect={() => {setTargetWorkbookId(w.id); setTargetSetlistId(null);}}>
+                                {w.name}
+                                </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button variant="outline" size="icon" onClick={() => setIsCreatingWorkbook(true)}><PlusCircle /></Button>
+                      </div>
+                    )}
                 </div>
-                 <div className="grid gap-2">
+                 <div className="space-y-2">
                     <label className="text-sm font-medium">Destination Setlist</label>
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                        <Button variant="outline" className="w-full justify-between" disabled={!targetWorkbookId}>
-                            {targetableSetlists.find(s => s.id === targetSetlistId)?.name || "Select a setlist"}
-                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                        </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                        {targetableSetlists.length > 0 ? targetableSetlists.map(s => (
-                            <DropdownMenuItem key={s.id} onSelect={() => setTargetSetlistId(s.id)}>
-                            {s.name}
-                            </DropdownMenuItem>
-                        )) : <DropdownMenuItem disabled>No setlists in this workbook</DropdownMenuItem>}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                     {isCreatingSetlist ? (
+                      <div className="flex gap-2">
+                        <Input 
+                          value={newSetlistName} 
+                          onChange={(e) => setNewSetlistName(e.target.value)} 
+                          placeholder="New setlist name..."
+                          autoFocus
+                        />
+                        <Button onClick={handleCreateSetlist}>Create</Button>
+                        <Button variant="ghost" onClick={() => setIsCreatingSetlist(false)}>Cancel</Button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full justify-between" disabled={!targetWorkbookId}>
+                                {targetableSetlists.find(s => s.id === targetSetlistId)?.name || "Select a setlist"}
+                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                            {targetableSetlists.length > 0 ? targetableSetlists.map(s => (
+                                <DropdownMenuItem key={s.id} onSelect={() => setTargetSetlistId(s.id)}>
+                                {s.name}
+                                </DropdownMenuItem>
+                            )) : <DropdownMenuItem disabled>No setlists in this workbook</DropdownMenuItem>}
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        <Button variant="outline" size="icon" disabled={!targetWorkbookId} onClick={() => setIsCreatingSetlist(true)}><PlusCircle /></Button>
+                      </div>
+                    )}
                 </div>
             </div>
             <DialogFooter>
@@ -232,3 +291,4 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   );
 }
 
+    

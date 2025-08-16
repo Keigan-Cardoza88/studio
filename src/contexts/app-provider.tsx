@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface AppContextType {
   workbooks: Workbook[];
-  addWorkbook: (name: string) => void;
+  addWorkbook: (name: string) => string;
   deleteWorkbook: (workbookId: string) => void;
   updateWorkbook: (workbookId: string, updatedWorkbook: Partial<Workbook>) => void;
   moveSetlistToWorkbook: (setlistId: string, fromWorkbookId: string, toWorkbookId: string) => void;
@@ -18,7 +18,7 @@ interface AppContextType {
   activeWorkbookId: string | null;
 
   setlists: Setlist[];
-  addSetlist: (workbookId: string, name: string) => void;
+  addSetlist: (workbookId: string, name: string) => string;
   updateSetlist: (workbookId: string, setlistId: string, updatedSetlist: Partial<Setlist>) => void;
   deleteSetlist: (workbookId: string, setlistId: string) => void;
   
@@ -73,13 +73,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setActiveSongId(null);
   }, [setActiveWorkbookId, setActiveSetlistId, setActiveSongId]);
 
-  const addWorkbook = (name: string) => {
+  const addWorkbook = (name: string): string => {
     const newWorkbook: Workbook = {
       id: Date.now().toString(),
       name,
       setlists: [],
     };
     setWorkbooks(prev => [...prev, newWorkbook]);
+    return newWorkbook.id;
   };
 
   const deleteWorkbook = (workbookId: string) => {
@@ -127,13 +128,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const addSetlist = (workbookId: string, name: string) => {
+  const addSetlist = (workbookId: string, name: string): string => {
     const newSetlist: Setlist = {
       id: Date.now().toString(),
       name,
       songs: [],
     };
     setWorkbooks(prev => prev.map(w => w.id === workbookId ? { ...w, setlists: [...w.setlists, newSetlist] } : w));
+    return newSetlist.id;
   };
 
   const updateSetlist = (workbookId: string, setlistId: string, updatedSetlist: Partial<Setlist>) => {
@@ -327,3 +329,5 @@ export function useAppContext() {
   }
   return context;
 }
+
+    
