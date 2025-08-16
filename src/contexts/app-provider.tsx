@@ -39,12 +39,19 @@ interface AppContextType {
   reorderSongs: (workbookId: string, setlistId: string, songs: Song[]) => void;
   isLoading: boolean;
 
+  // --- Start: State centralized from Setlist-View ---
+  selectedSongIds: string[];
+  handleSelectionChange: (songId: string, isChecked: boolean) => void;
+  handleSelectAll: (songs: Song[], isChecked: boolean) => void;
+  clearSelection: () => void;
+  // --- End: State centralized from Setlist-View ---
+
+
   // State for Move/Copy Modal
   isActionModalOpen: boolean;
   actionModalMode: ModalMode | null;
   actionSource: { workbookId: string; setlistId: string } | null;
-  selectedSongIdsForAction: string[];
-  openActionModal: (mode: ModalMode, sourceWbId: string, sourceSlId: string, songIds: string[]) => void;
+  openActionModal: (mode: ModalMode, sourceWbId: string, sourceSlId: string) => void;
   closeActionModal: () => void;
   confirmSongAction: (destWbId: string, destSlId: string) => void;
 }
@@ -61,10 +68,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
+  // State for song selection, lifted from SetlistView
+  const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
+
   // State for the Move/Copy modal
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
   const [actionModalMode, setActionModalMode] = useState<ModalMode | null>(null);
-  const [selectedSongIdsForAction, setSelectedSongIdsForAction] = useState<string[]>([]);
   const [actionSource, setActionSource] = useState<{ workbookId: string; setlistId: string } | null>(null);
 
   useEffect(() => {
@@ -80,6 +89,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Clear selection when changing setlists
+  useEffect(() => {
+    clearSelection();
+  }, [activeSetlistId]);
+
 
   const handleSetActiveWorkbookId = useCallback((id: string | null) => {
     setActiveWorkbookId(id);
@@ -244,14 +259,27 @@ export function AppProvider({ children }: { children: ReactNode }) {
       return w;
     }));
   };
+  
+  // --- Start: Selection logic lifted from Setlist-View ---
+  const handleSelectionChange = (songId: string, isChecked: boolean) => {
+    setSelectedSongIds(prev =>
+      isChecked ? [...prev, songId] : prev.filter(id => id !== songId)
+    );
+  };
+  const handleSelectAll = (songs: Song[], isChecked: boolean) => {
+    setSelectedSongIds(isChecked ? songs.map(s => s.id) : []);
+  };
+  const clearSelection = () => {
+    setSelectedSongIds([]);
+  }
+  // --- End: Selection logic ---
 
-  const openActionModal = (mode: ModalMode, sourceWbId: string, sourceSlId: string, songIds: string[]) => {
-    if (songIds.length === 0) {
+  const openActionModal = (mode: ModalMode, sourceWbId: string, sourceSlId: string) => {
+    if (selectedSongIds.length === 0) {
       toast({ title: 'No songs selected', description: 'Please select one or more songs to ' + mode, variant: 'destructive' });
       return;
     }
     setActionModalMode(mode);
-    setSelectedSongIdsForAction(songIds);
     setActionSource({ workbookId: sourceWbId, setlistId: sourceSlId });
     setIsActionModalOpen(true);
   };
@@ -259,19 +287,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const closeActionModal = () => {
     setIsActionModalOpen(false);
     setActionModalMode(null);
-    setSelectedSongIdsForAction([]);
     setActionSource(null);
   };
 
   const confirmSongAction = (destWbId: string, destSlId: string) => {
-    if (!actionModalMode || !actionSource || selectedSongIdsForAction.length === 0) {
+    if (!actionModalMode || !actionSource || selectedSongIds.length === 0) {
       toast({ title: "Error", description: "Missing required information for action.", variant: "destructive" });
       closeActionModal();
       return;
     }
 
     let songsToProcess: Song[] = [];
-    const songIdsSet = new Set(selectedSongIdsForAction);
+    const songIdsSet = new Set(selectedSongIds);
 
     const sourceWorkbook = workbooks.find(wb => wb.id === actionSource.workbookId);
     const sourceSetlist = sourceWorkbook?.setlists.find(sl => sl.id === actionSource.setlistId);
@@ -333,6 +360,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         title: `Songs ${actionModalMode === 'move' ? 'Moved' : 'Copied'}`,
         description: `${songsToProcess.length} song(s) transferred successfully.`,
       });
+      clearSelection();
       closeActionModal();
   };
 
@@ -341,16 +369,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const activeSong = isLoading ? null : activeSetlist?.songs.find(s => s.id === activeSongId) || null;
 
   const value = {
-    workbooks, setWorkbooks: setWorkbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook,
+    workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook,
     activeWorkbook, setActiveWorkbookId: handleSetActiveWorkbookId, activeWorkbookId,
-    setlists: activeWorkbook?.setlists || [], addSetlist, updateSetlist, deleteSetlist,
+    addSetlist, updateSetlist, deleteSetlist,
     activeSetlist, setActiveSetlistId, activeSetlistId,
     addSong, updateSong, deleteSong,
     activeSong, setActiveSongId, activeSongId,
-
     importSetlists, reorderSongs, isLoading,
     
-    isActionModalOpen, actionModalMode, actionSource, selectedSongIdsForAction,
+    selectedSongIds, handleSelectionChange, handleSelectAll, clearSelection,
+
+    isActionModalOpen, actionModalMode, actionSource,
     openActionModal, closeActionModal, confirmSongAction,
   };
 
@@ -364,5 +393,3 @@ export function useAppContext() {
   }
   return context;
 }
-
-    

@@ -24,7 +24,7 @@ function MoveCopyDialog() {
     const { 
         workbooks, addWorkbook, addSetlist, 
         isActionModalOpen, closeActionModal, confirmSongAction,
-        actionModalMode, actionSource, selectedSongIdsForAction 
+        actionModalMode, actionSource, selectedSongIds
     } = useAppContext();
 
     const [targetWorkbookId, setTargetWorkbookId] = useState<string | null>(null);
@@ -36,8 +36,13 @@ function MoveCopyDialog() {
     const [newSetlistName, setNewSetlistName] = useState("");
     const { toast } = useToast();
 
+    // Reset local state when the dialog opens or closes
     useEffect(() => {
-        if (!isActionModalOpen) {
+        if (isActionModalOpen) {
+            setTargetWorkbookId(actionSource?.workbookId || null);
+            setTargetSetlistId(null);
+        } else {
+            // Reset all state on close
             setTargetWorkbookId(null);
             setTargetSetlistId(null);
             setIsCreatingWorkbook(false);
@@ -45,10 +50,11 @@ function MoveCopyDialog() {
             setIsCreatingSetlist(false);
             setNewSetlistName("");
         }
-    }, [isActionModalOpen]);
+    }, [isActionModalOpen, actionSource]);
 
     const targetableWorkbooks = useMemo(() => {
         if (actionModalMode === 'move') {
+          // Exclude the source workbook when moving
           return workbooks.filter(wb => wb.id !== actionSource?.workbookId);
         }
         return workbooks;
@@ -60,6 +66,7 @@ function MoveCopyDialog() {
         if (!targetWb) return [];
     
         if (actionModalMode === 'move' && targetWorkbookId === actionSource?.workbookId) {
+          // Exclude source setlist when moving within the same workbook
           return targetWb.setlists.filter(s => s.id !== actionSource?.setlistId);
         }
         
@@ -80,7 +87,7 @@ function MoveCopyDialog() {
         setTargetWorkbookId(newWorkbookId);
         setNewWorkbookName("");
         setIsCreatingWorkbook(false);
-        setTargetSetlistId(null);
+        setTargetSetlistId(null); // Reset setlist selection
       }
     }
   
@@ -93,11 +100,13 @@ function MoveCopyDialog() {
       }
     }
 
+    if (!actionSource) return null;
+
     return (
         <Dialog open={isActionModalOpen} onOpenChange={closeActionModal}>
         <DialogContent>
             <DialogHeader>
-                <DialogTitle>{actionModalMode === 'move' ? 'Move' : 'Copy'} {selectedSongIdsForAction.length} song(s)</DialogTitle>
+                <DialogTitle>{actionModalMode === 'move' ? 'Move' : 'Copy'} {selectedSongIds.length} song(s)</DialogTitle>
                 <DialogDescription>Select the destination for the selected songs.</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
@@ -130,6 +139,11 @@ function MoveCopyDialog() {
                                 {w.name}
                                 </DropdownMenuItem>
                             ))}
+                            {actionModalMode === 'copy' && workbooks.find(w => w.id === actionSource.workbookId) && (
+                                <DropdownMenuItem key={actionSource.workbookId} onSelect={() => {setTargetWorkbookId(actionSource.workbookId); setTargetSetlistId(null);}}>
+                                    {workbooks.find(w => w.id === actionSource.workbookId)?.name}
+                                </DropdownMenuItem>
+                            )}
                              {targetableWorkbooks.length === 0 && actionModalMode === 'move' && <DropdownMenuItem disabled>No other workbooks to move to.</DropdownMenuItem>}
                           </DropdownMenuContent>
                         </DropdownMenu>
@@ -183,19 +197,18 @@ function MoveCopyDialog() {
 }
 
 export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
-  const { setActiveSongId, deleteSong, reorderSongs, openActionModal } = useAppContext();
+  const { 
+      setActiveSongId, deleteSong, reorderSongs, openActionModal, 
+      selectedSongIds, handleSelectionChange, handleSelectAll, clearSelection
+  } = useAppContext();
+  
   const [songs, setSongs] = useState<Song[]>(setlist.songs);
-  const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
   const dragItem = useRef<number | null>(null);
   const dragOverItem = useRef<number | null>(null);
   
   useEffect(() => {
     setSongs(setlist.songs);
   }, [setlist.songs]);
-
-  useEffect(() => {
-    setSelectedSongIds([]);
-  }, [setlist.id]);
   
   const handleDragStart = (e: React.DragEvent<HTMLDivElement>, index: number) => {
     if (selectedSongIds.length > 0) {
@@ -224,16 +237,6 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     dragOverItem.current = null;
   };
   
-  const handleSelectionChange = (songId: string, isChecked: boolean) => {
-    setSelectedSongIds(prev =>
-      isChecked ? [...prev, songId] : prev.filter(id => id !== songId)
-    );
-  };
-
-  const handleSelectAll = (isChecked: boolean) => {
-    setSelectedSongIds(isChecked ? songs.map(s => s.id) : []);
-  };
-  
   const isSelectionMode = selectedSongIds.length > 0;
   const allSongsSelected = songs.length > 0 && selectedSongIds.length === songs.length;
 
@@ -245,7 +248,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
              <Checkbox
                 id="select-all"
                 checked={allSongsSelected}
-                onCheckedChange={(checked) => handleSelectAll(Boolean(checked))}
+                onCheckedChange={(checked) => handleSelectAll(songs, Boolean(checked))}
                 aria-label="Select all songs"
             />
            )}
@@ -259,8 +262,8 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
         <div className="flex gap-2 flex-wrap">
           {isSelectionMode ? (
               <>
-                  <Button onClick={() => openActionModal('move', workbookId, setlist.id, selectedSongIds)}><Move className="mr-2"/> Move</Button>
-                  <Button onClick={() => openActionModal('copy', workbookId, setlist.id, selectedSongIds)}><Copy className="mr-2"/> Copy</Button>
+                  <Button onClick={() => openActionModal('move', workbookId, setlist.id)}><Move className="mr-2"/> Move</Button>
+                  <Button onClick={() => openActionModal('copy', workbookId, setlist.id)}><Copy className="mr-2"/> Copy</Button>
               </>
           ) : (
             <SongEditor workbookId={workbookId} setlistId={setlist.id} />
@@ -313,5 +316,3 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     </div>
   );
 }
-
-    
