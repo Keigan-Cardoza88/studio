@@ -22,6 +22,7 @@ interface AppContextType {
   addSetlist: (workbookId: string, name: string) => string;
   updateSetlist: (workbookId: string, setlistId: string, updatedSetlist: Partial<Setlist>) => void;
   deleteSetlist: (workbookId: string, setlistId: string) => void;
+  mergeSetlists: (workbookId: string, setlistIds: string[], newName: string) => void;
   
   activeSetlist: Setlist | null;
   setActiveSetlistId: (id: string | null) => void;
@@ -47,6 +48,13 @@ interface AppContextType {
   // --- End: State centralized from Setlist-View ---
 
 
+  // --- Start: State for Setlist Selection ---
+  selectedSetlistIds: string[];
+  handleSetlistSelectionChange: (setlistId: string, isChecked: boolean) => void;
+  clearSetlistSelection: () => void;
+  // --- End: State for Setlist Selection ---
+
+
   // State for Move/Copy Modal
   isActionModalOpen: boolean;
   actionModalMode: ModalMode | null;
@@ -70,6 +78,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // State for song selection, lifted from SetlistView
   const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
+  const [selectedSetlistIds, setSelectedSetlistIds] = useState<string[]>([]);
+
 
   // State for the Move/Copy modal
   const [isActionModalOpen, setIsActionModalOpen] = useState(false);
@@ -94,6 +104,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     clearSelection();
   }, [activeSetlistId]);
+
+  // Clear setlist selection when changing workbooks
+  useEffect(() => {
+    clearSetlistSelection();
+  }, [activeWorkbookId]);
 
 
   const handleSetActiveWorkbookId = useCallback((id: string | null) => {
@@ -167,6 +182,32 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setWorkbooks(prev => prev.map(w => w.id === workbookId ? { ...w, setlists: [...w.setlists, newSetlist] } : w));
     toast({ title: "Setlist Created", description: `"${name}" has been created.` });
     return newSetlist.id;
+  };
+
+  const mergeSetlists = (workbookId: string, setlistIds: string[], newName: string) => {
+    setWorkbooks(prev => prev.map(w => {
+        if (w.id === workbookId) {
+            const setlistsToMerge = w.setlists.filter(sl => setlistIds.includes(sl.id));
+            if (setlistsToMerge.length === 0) return w;
+
+            const allSongs = setlistsToMerge.flatMap(sl => sl.songs);
+            // Deduplicate songs by ID
+            const uniqueSongs = Array.from(new Map(allSongs.map(song => [song.id, song])).values());
+
+            const newSetlist: Setlist = {
+                id: Date.now().toString(),
+                name: newName,
+                songs: uniqueSongs,
+            };
+            toast({
+                title: "Setlists Merged",
+                description: `Created new setlist "${newName}" with ${uniqueSongs.length} songs.`,
+            });
+            return { ...w, setlists: [...w.setlists, newSetlist] };
+        }
+        return w;
+    }));
+    clearSetlistSelection();
   };
 
   const updateSetlist = (workbookId: string, setlistId: string, updatedSetlist: Partial<Setlist>) => {
@@ -274,6 +315,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   }
   // --- End: Selection logic ---
 
+  // --- Start: Setlist Selection logic ---
+  const handleSetlistSelectionChange = (setlistId: string, isChecked: boolean) => {
+    setSelectedSetlistIds(prev =>
+      isChecked ? [...prev, setlistId] : prev.filter(id => id !== setlistId)
+    );
+  };
+  const clearSetlistSelection = () => {
+    setSelectedSetlistIds([]);
+  };
+  // --- End: Setlist Selection logic ---
+
+
   const openActionModal = (mode: ModalMode, sourceWbId: string, sourceSlId: string) => {
     if (selectedSongIds.length === 0) {
       toast({ title: 'No songs selected', description: 'Please select one or more songs to ' + mode, variant: 'destructive' });
@@ -371,13 +424,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = {
     workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook,
     activeWorkbook, setActiveWorkbookId: handleSetActiveWorkbookId, activeWorkbookId,
-    addSetlist, updateSetlist, deleteSetlist,
+    addSetlist, updateSetlist, deleteSetlist, mergeSetlists,
     activeSetlist, setActiveSetlistId, activeSetlistId,
     addSong, updateSong, deleteSong,
     activeSong, setActiveSongId, activeSongId,
     importSetlists, reorderSongs, isLoading,
     
     selectedSongIds, handleSelectionChange, handleSelectAll, clearSelection,
+
+    selectedSetlistIds, handleSetlistSelectionChange, clearSetlistSelection,
 
     isActionModalOpen, actionModalMode, actionSource,
     openActionModal, closeActionModal, confirmSongAction,

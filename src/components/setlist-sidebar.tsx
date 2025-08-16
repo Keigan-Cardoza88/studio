@@ -3,15 +3,16 @@
 
 import React from 'react';
 import { useAppContext } from '@/contexts/app-provider';
-import { Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton } from '@/components/ui/sidebar';
+import { Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, SidebarMenuButton, SidebarFooter } from '@/components/ui/sidebar';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Upload, Share, Clipboard, ClipboardCheck, FilePenLine } from 'lucide-react';
+import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Upload, Share, Clipboard, ClipboardCheck, FilePenLine, Merge } from 'lucide-react';
 import { useForm, SubmitHandler } from "react-hook-form";
 import type { Setlist, Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
@@ -20,8 +21,78 @@ type Inputs = {
   name: string;
 };
 
+type MergeInputs = {
+  name: string;
+}
+
+function MergeSetlistsDialog() {
+  const { activeWorkbookId, selectedSetlistIds, mergeSetlists, clearSetlistSelection } = useAppContext();
+  const [isOpen, setIsOpen] = React.useState(false);
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<MergeInputs>();
+
+  const onSubmit: SubmitHandler<MergeInputs> = (data) => {
+    if (activeWorkbookId && data.name.trim()) {
+      mergeSetlists(activeWorkbookId, selectedSetlistIds, data.name.trim());
+      reset();
+      setIsOpen(false);
+    }
+  };
+
+  React.useEffect(() => {
+    if(selectedSetlistIds.length < 2) {
+      setIsOpen(false);
+    }
+  }, [selectedSetlistIds]);
+  
+  if (selectedSetlistIds.length < 2 || !activeWorkbookId) {
+    return null;
+  }
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => {
+        setIsOpen(open);
+        if (!open) {
+          reset();
+          clearSetlistSelection();
+        }
+    }}>
+      <DialogTrigger asChild>
+        <Button variant="outline" className="w-full justify-start">
+          <Merge className="mr-2 h-4 w-4" />
+          Merge Selected ({selectedSetlistIds.length})
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Merge Setlists</DialogTitle>
+          <DialogDescription>
+            Create a new setlist containing all songs from the selected setlists.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit(onSubmit)}>
+          <div className="py-4">
+             <Input 
+                {...register("name", { required: "A name is required for the new setlist." })} 
+                placeholder="New Merged Setlist Name" 
+                className="my-4" 
+             />
+             {errors.name && <p className="text-sm text-destructive">{errors.name.message}</p>}
+          </div>
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="secondary">Cancel</Button>
+            </DialogClose>
+            <Button type="submit">Merge</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+
 export function SetlistSidebar() {
-  const { workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook, activeWorkbook, setActiveWorkbookId, addSetlist, activeSetlistId, setActiveSetlistId, deleteSetlist, importSetlists, activeWorkbookId } = useAppContext();
+  const { workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook, activeWorkbook, setActiveWorkbookId, addSetlist, activeSetlistId, setActiveSetlistId, deleteSetlist, importSetlists, activeWorkbookId, selectedSetlistIds, handleSetlistSelectionChange } = useAppContext();
   const [isNewSetlistOpen, setIsNewSetlistOpen] = React.useState(false);
   const [isNewWorkbookOpen, setIsNewWorkbookOpen] = React.useState(false);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
@@ -134,6 +205,20 @@ export function SetlistSidebar() {
       description: `Successfully moved setlist to new workbook.`,
     });
   }
+  
+  const isSelectionMode = selectedSetlistIds.length > 0;
+  
+  const handleSetlistClick = (e: React.MouseEvent, workbookId: string, setlistId: string) => {
+    if (isSelectionMode) {
+      // Prevent navigation, just toggle selection
+      e.preventDefault();
+      handleSetlistSelectionChange(setlistId, !selectedSetlistIds.includes(setlistId));
+    } else {
+      setActiveWorkbookId(workbookId);
+      setActiveSetlistId(setlistId);
+    }
+  };
+
 
   return (
     <Sidebar>
@@ -223,7 +308,7 @@ export function SetlistSidebar() {
                      <SidebarMenuItem>
                       <Dialog open={isNewSetlistOpen} onOpenChange={setIsNewSetlistOpen}>
                         <DialogTrigger asChild>
-                           <Button variant="outline" size="sm" className="w-full justify-start h-8" disabled={activeWorkbookId !== workbook.id} onClick={() => setActiveWorkbookId(workbook.id)}>
+                           <Button variant="outline" size="sm" className="w-full justify-start h-8" disabled={activeWorkbookId !== workbook.id || isSelectionMode} onClick={() => setActiveWorkbookId(workbook.id)}>
                               <PlusCircle className="mr-2 h-4 w-4" /> New Setlist
                            </Button>
                         </DialogTrigger>
@@ -240,15 +325,26 @@ export function SetlistSidebar() {
                       </Dialog>
                     </SidebarMenuItem>
                     {workbook.setlists.map((setlist) => (
-                      <SidebarMenuItem key={setlist.id} className="group/item">
-                        <SidebarMenuButton isActive={setlist.id === activeSetlistId} onClick={() => { setActiveWorkbookId(workbook.id); setActiveSetlistId(setlist.id);}} className="w-full">
+                      <SidebarMenuItem key={setlist.id} className="group/item flex items-center gap-2">
+                        { activeWorkbookId === workbook.id && <Checkbox 
+                          id={`select-setlist-${setlist.id}`}
+                          checked={selectedSetlistIds.includes(setlist.id)}
+                          onCheckedChange={(checked) => handleSetlistSelectionChange(setlist.id, Boolean(checked))}
+                          className="ml-2"
+                        /> }
+                        <SidebarMenuButton 
+                            isActive={setlist.id === activeSetlistId && !isSelectionMode} 
+                            onClick={(e) => handleSetlistClick(e, workbook.id, setlist.id)} 
+                            className="w-full"
+                            disabled={isSelectionMode && activeWorkbookId !== workbook.id}
+                        >
                            <Book className="h-4 w-4 text-blue-400" />
                            <span className="truncate flex-grow text-left text-blue-400">{setlist.name}</span>
                         </SidebarMenuButton>
                         <div className="absolute right-1 top-1/2 -translate-y-1/2 h-7 flex items-center opacity-0 group-hover/item:opacity-100">
                            <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7"><ChevronsUpDown className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isSelectionMode}><ChevronsUpDown className="h-4 w-4" /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent>
                                 {workbooks.filter(w => w.id !== workbook.id).map(targetWorkbook => (
@@ -261,7 +357,7 @@ export function SetlistSidebar() {
                             </DropdownMenu>
                            <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isSelectionMode}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
@@ -285,82 +381,89 @@ export function SetlistSidebar() {
           </Accordion>
         </SidebarMenu>
       </SidebarContent>
-       <SidebarMenu>
-        <SidebarMenuItem>
-          <Button variant="ghost" className="w-full justify-start" onClick={handleImportClick}>
-            <Upload className="mr-2 h-4 w-4" />
-            Import from Text
-          </Button>
-          <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
-             <DialogContent className="sm:max-w-xl">
-               <DialogHeader>
-                 <DialogTitle>Import Setlists from Text</DialogTitle>
-                 <DialogDescription>Paste the text from a shared workbook below.</DialogDescription>
-               </DialogHeader>
-                <div className="grid gap-4 py-4">
-                    <div className="grid gap-2">
-                        <label className="text-sm font-medium">Import into Workbook</label>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button variant="outline" className="w-full justify-between">
-                              {workbooks.find(w => w.id === workbookToImportTo)?.name || "Select a workbook"}
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                            {workbooks.map(w => (
-                              <DropdownMenuItem key={w.id} onSelect={() => setWorkbookToImportTo(w.id)}>
-                                {w.name}
-                              </DropdownMenuItem>
-                            ))}
-                          </DropdownMenuContent>
-                        </DropdownMenu>
+       <SidebarFooter>
+        <SidebarMenu>
+            {selectedSetlistIds.length > 1 && (
+                <SidebarMenuItem>
+                    <MergeSetlistsDialog />
+                </SidebarMenuItem>
+            )}
+            <SidebarMenuItem>
+              <Button variant="ghost" className="w-full justify-start" onClick={handleImportClick}>
+                <Upload className="mr-2 h-4 w-4" />
+                Import from Text
+              </Button>
+              <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
+                 <DialogContent className="sm:max-w-xl">
+                   <DialogHeader>
+                     <DialogTitle>Import Setlists from Text</DialogTitle>
+                     <DialogDescription>Paste the text from a shared workbook below.</DialogDescription>
+                   </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                        <div className="grid gap-2">
+                            <label className="text-sm font-medium">Import into Workbook</label>
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button variant="outline" className="w-full justify-between">
+                                  {workbooks.find(w => w.id === workbookToImportTo)?.name || "Select a workbook"}
+                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
+                                {workbooks.map(w => (
+                                  <DropdownMenuItem key={w.id} onSelect={() => setWorkbookToImportTo(w.id)}>
+                                    {w.name}
+                                  </DropdownMenuItem>
+                                ))}
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                        </div>
+                        <Textarea 
+                            value={importText}
+                            onChange={(e) => setImportText(e.target.value)}
+                            placeholder="Paste shared setlist data here..."
+                            className="h-48 font-mono"
+                        />
                     </div>
-                    <Textarea 
-                        value={importText}
-                        onChange={(e) => setImportText(e.target.value)}
-                        placeholder="Paste shared setlist data here..."
-                        className="h-48 font-mono"
-                    />
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-                  <Button onClick={handleImportFromText} disabled={!importText || !workbookToImportTo}>Import</Button>
-                </DialogFooter>
-             </DialogContent>
-          </Dialog>
-        </SidebarMenuItem>
-        <SidebarMenuItem>
-           <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
-              <DialogTrigger asChild>
-                <Button variant="ghost" className="w-full justify-start" onClick={handleShareClick}>
-                  <Share className="mr-2 h-4 w-4" />
-                  Share Workbook
-                </Button>
-              </DialogTrigger>
-              <DialogContent className="sm:max-w-xl">
-                <DialogHeader>
-                    <DialogTitle>Share "{activeWorkbook?.name}"</DialogTitle>
-                    <DialogDescription>Copy the text below and send it to your friends. They can import it using the "Import from Text" button.</DialogDescription>
-                </DialogHeader>
-                <div className="relative py-4">
-                  <Textarea 
-                    readOnly 
-                    value={activeWorkbook ? JSON.stringify(activeWorkbook.setlists, null, 2) : ""} 
-                    className="h-64 font-mono"
-                   />
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild><Button type="button" variant="secondary">Done</Button></DialogClose>
-                  <Button onClick={handleCopyToClipboard}>
-                    {hasCopied ? <ClipboardCheck className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
-                    {hasCopied ? "Copied!" : "Copy to Clipboard"}
-                  </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-        </SidebarMenuItem>
-      </SidebarMenu>
+                    <DialogFooter>
+                      <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
+                      <Button onClick={handleImportFromText} disabled={!importText || !workbookToImportTo}>Import</Button>
+                    </DialogFooter>
+                 </DialogContent>
+              </Dialog>
+            </SidebarMenuItem>
+            <SidebarMenuItem>
+               <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
+                  <DialogTrigger asChild>
+                    <Button variant="ghost" className="w-full justify-start" onClick={handleShareClick}>
+                      <Share className="mr-2 h-4 w-4" />
+                      Share Workbook
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle>Share "{activeWorkbook?.name}"</DialogTitle>
+                        <DialogDescription>Copy the text below and send it to your friends. They can import it using the "Import from Text" button.</DialogDescription>
+                    </DialogHeader>
+                    <div className="relative py-4">
+                      <Textarea 
+                        readOnly 
+                        value={activeWorkbook ? JSON.stringify(activeWorkbook.setlists, null, 2) : ""} 
+                        className="h-64 font-mono"
+                       />
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild><Button type="button" variant="secondary">Done</Button></DialogClose>
+                      <Button onClick={handleCopyToClipboard}>
+                        {hasCopied ? <ClipboardCheck className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
+                        {hasCopied ? "Copied!" : "Copy to Clipboard"}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
+            </SidebarMenuItem>
+        </SidebarMenu>
+       </SidebarFooter>
     </Sidebar>
   );
 }
