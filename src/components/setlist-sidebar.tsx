@@ -159,31 +159,36 @@ export function SetlistSidebar() {
        return;
     }
     setIsShareOpen(true);
-    generateShareLink();
   }
 
-  const generateShareLink = async () => {
-    console.log("DEBUG: generateShareLink started.");
-    if (!activeWorkbook) {
-        console.log("DEBUG: No active workbook, returning.");
-        return;
-    }
+  const generateShareLink = React.useCallback(async () => {
+    if (!activeWorkbook) return;
+
     setIsSharing(true);
     setShareUrl('');
+    console.log("DEBUG: generateShareLink started.");
+
     try {
       console.log("DEBUG: Sharing workbook:", activeWorkbook);
       const id = await shareWorkbook(activeWorkbook);
       const url = `${window.location.origin}/share/${id}`;
       console.log("DEBUG: Share link generated:", { id, url });
       setShareUrl(url);
-      setIsSharing(false);
-    } catch(e) {
+    } catch (e) {
       console.error("DEBUG: Sharing failed with error:", e);
       toast({ title: "Sharing Failed", description: "Could not generate share link. Please try again.", variant: "destructive" });
-      setIsSharing(false); // Also stop loading on failure
-      setIsShareOpen(false); // Close dialog on failure
+      setIsShareOpen(false); 
+    } finally {
+        setIsSharing(false);
+        console.log("DEBUG: generateShareLink finished.");
     }
-  };
+  }, [activeWorkbook, toast]);
+
+  React.useEffect(() => {
+    if (isShareOpen) {
+        generateShareLink();
+    }
+  }, [isShareOpen, generateShareLink]);
 
   const handleCopyToClipboard = () => {
     if(!shareUrl) return;
