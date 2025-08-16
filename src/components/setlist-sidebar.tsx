@@ -16,6 +16,8 @@ import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Tras
 import { useForm, SubmitHandler } from "react-hook-form";
 import type { Setlist, Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
+import { useLongPress } from '@/hooks/use-long-press';
+import { cn } from '@/lib/utils';
 
 type Inputs = {
   name: string;
@@ -92,7 +94,12 @@ function MergeSetlistsDialog() {
 
 
 export function SetlistSidebar() {
-  const { workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook, activeWorkbook, setActiveWorkbookId, addSetlist, activeSetlistId, setActiveSetlistId, deleteSetlist, importSetlists, activeWorkbookId, selectedSetlistIds, handleSetlistSelectionChange } = useAppContext();
+  const { 
+    workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook, 
+    activeWorkbook, setActiveWorkbookId, addSetlist, activeSetlistId, setActiveSetlistId, 
+    deleteSetlist, importSetlists, activeWorkbookId, 
+    selectedSetlistIds, handleSetlistSelectionChange, isSetlistSelectionModeActive, setIsSetlistSelectionModeActive
+  } = useAppContext();
   const [isNewSetlistOpen, setIsNewSetlistOpen] = React.useState(false);
   const [isNewWorkbookOpen, setIsNewWorkbookOpen] = React.useState(false);
   const [isImportOpen, setIsImportOpen] = React.useState(false);
@@ -206,18 +213,27 @@ export function SetlistSidebar() {
     });
   }
   
-  const isSelectionMode = selectedSetlistIds.length > 0;
-  
-  const handleSetlistClick = (e: React.MouseEvent, workbookId: string, setlistId: string) => {
-    if (isSelectionMode) {
-      // Prevent navigation, just toggle selection
-      e.preventDefault();
-      handleSetlistSelectionChange(setlistId, !selectedSetlistIds.includes(setlistId));
-    } else {
-      setActiveWorkbookId(workbookId);
-      setActiveSetlistId(setlistId);
-    }
-  };
+  const longPressEvents = useLongPress({
+      onLongPress: (e) => {
+        const setlistId = (e.currentTarget as HTMLElement).dataset.setlistId;
+        if (setlistId && !isSetlistSelectionModeActive) {
+            setIsSetlistSelectionModeActive(true);
+            handleSetlistSelectionChange(setlistId, true);
+        }
+      },
+      onClick: (e) => {
+        const setlistId = (e.currentTarget as HTMLElement).dataset.setlistId;
+        const workbookId = (e.currentTarget as HTMLElement).dataset.workbookId;
+        if (!setlistId || !workbookId) return;
+
+        if (isSetlistSelectionModeActive) {
+          handleSetlistSelectionChange(setlistId, !selectedSetlistIds.includes(setlistId));
+        } else {
+          setActiveWorkbookId(workbookId);
+          setActiveSetlistId(setlistId);
+        }
+      }
+    });
 
 
   return (
@@ -308,7 +324,7 @@ export function SetlistSidebar() {
                      <SidebarMenuItem>
                       <Dialog open={isNewSetlistOpen} onOpenChange={setIsNewSetlistOpen}>
                         <DialogTrigger asChild>
-                           <Button variant="outline" size="sm" className="w-full justify-start h-8" disabled={activeWorkbookId !== workbook.id || isSelectionMode} onClick={() => setActiveWorkbookId(workbook.id)}>
+                           <Button variant="outline" size="sm" className="w-full justify-start h-8" disabled={activeWorkbookId !== workbook.id || isSetlistSelectionModeActive} onClick={() => setActiveWorkbookId(workbook.id)}>
                               <PlusCircle className="mr-2 h-4 w-4" /> New Setlist
                            </Button>
                         </DialogTrigger>
@@ -326,25 +342,31 @@ export function SetlistSidebar() {
                     </SidebarMenuItem>
                     {workbook.setlists.map((setlist) => (
                       <SidebarMenuItem key={setlist.id} className="group/item flex items-center gap-2">
-                        { activeWorkbookId === workbook.id && <Checkbox 
-                          id={`select-setlist-${setlist.id}`}
-                          checked={selectedSetlistIds.includes(setlist.id)}
-                          onCheckedChange={(checked) => handleSetlistSelectionChange(setlist.id, Boolean(checked))}
-                          className="ml-2"
-                        /> }
-                        <SidebarMenuButton 
-                            isActive={setlist.id === activeSetlistId && !isSelectionMode} 
-                            onClick={(e) => handleSetlistClick(e, workbook.id, setlist.id)} 
-                            className="w-full"
-                            disabled={isSelectionMode && activeWorkbookId !== workbook.id}
+                        <div 
+                          className="flex-grow flex items-center"
+                          {...longPressEvents} 
+                          data-setlist-id={setlist.id}
+                          data-workbook-id={workbook.id}
                         >
-                           <Book className="h-4 w-4 text-blue-400" />
-                           <span className="truncate flex-grow text-left text-blue-400">{setlist.name}</span>
-                        </SidebarMenuButton>
+                            { isSetlistSelectionModeActive && activeWorkbookId === workbook.id && <Checkbox 
+                                id={`select-setlist-${setlist.id}`}
+                                checked={selectedSetlistIds.includes(setlist.id)}
+                                onCheckedChange={(checked) => handleSetlistSelectionChange(setlist.id, Boolean(checked))}
+                                className="ml-2"
+                            /> }
+                            <SidebarMenuButton 
+                                isActive={setlist.id === activeSetlistId && !isSetlistSelectionModeActive} 
+                                className={cn("w-full cursor-pointer", isSetlistSelectionModeActive && "cursor-default")}
+                                disabled={isSetlistSelectionModeActive && activeWorkbookId !== workbook.id}
+                            >
+                               <Book className="h-4 w-4 text-blue-400" />
+                               <span className="truncate flex-grow text-left text-blue-400">{setlist.name}</span>
+                            </SidebarMenuButton>
+                        </div>
                         <div className="absolute right-1 top-1/2 -translate-y-1/2 h-7 flex items-center opacity-0 group-hover/item:opacity-100">
                            <DropdownMenu>
                               <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isSelectionMode}><ChevronsUpDown className="h-4 w-4" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isSetlistSelectionModeActive}><ChevronsUpDown className="h-4 w-4" /></Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent>
                                 {workbooks.filter(w => w.id !== workbook.id).map(targetWorkbook => (
@@ -357,7 +379,7 @@ export function SetlistSidebar() {
                             </DropdownMenu>
                            <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isSelectionMode}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                <Button variant="ghost" size="icon" className="h-7 w-7" disabled={isSetlistSelectionModeActive}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>

@@ -40,16 +40,20 @@ interface AppContextType {
   reorderSongs: (workbookId: string, setlistId: string, songs: Song[]) => void;
   isLoading: boolean;
 
-  // --- Start: State centralized from Setlist-View ---
+  // --- Start: State for Song Selection ---
   selectedSongIds: string[];
-  handleSelectionChange: (songId: string, isChecked: boolean) => void;
-  handleSelectAll: (songs: Song[], isChecked: boolean) => void;
-  clearSelection: () => void;
-  // --- End: State centralized from Setlist-View ---
+  isSongSelectionModeActive: boolean;
+  setIsSongSelectionModeActive: (isActive: boolean) => void;
+  handleSongSelectionChange: (songId: string, isChecked: boolean) => void;
+  handleSelectAllSongs: (songs: Song[], isChecked: boolean) => void;
+  clearSongSelection: () => void;
+  // --- End: State for Song Selection ---
 
 
   // --- Start: State for Setlist Selection ---
   selectedSetlistIds: string[];
+  isSetlistSelectionModeActive: boolean;
+  setIsSetlistSelectionModeActive: (isActive: boolean) => void;
   handleSetlistSelectionChange: (setlistId: string, isChecked: boolean) => void;
   clearSetlistSelection: () => void;
   // --- End: State for Setlist Selection ---
@@ -76,9 +80,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const { toast } = useToast();
 
-  // State for song selection, lifted from SetlistView
+  // State for song selection
   const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
+  const [isSongSelectionModeActive, setIsSongSelectionModeActive] = useState(false);
+
+  // State for setlist selection
   const [selectedSetlistIds, setSelectedSetlistIds] = useState<string[]>([]);
+  const [isSetlistSelectionModeActive, setIsSetlistSelectionModeActive] = useState(false);
 
 
   // State for the Move/Copy modal
@@ -100,9 +108,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
   
-  // Clear selection when changing setlists
   useEffect(() => {
-    clearSelection();
+    if (selectedSongIds.length === 0) {
+      setIsSongSelectionModeActive(false);
+    }
+  }, [selectedSongIds]);
+
+  useEffect(() => {
+    if (selectedSetlistIds.length === 0) {
+      setIsSetlistSelectionModeActive(false);
+    }
+  }, [selectedSetlistIds]);
+
+
+  // Clear song selection when changing setlists
+  useEffect(() => {
+    clearSongSelection();
   }, [activeSetlistId]);
 
   // Clear setlist selection when changing workbooks
@@ -301,19 +322,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
   
-  // --- Start: Selection logic lifted from Setlist-View ---
-  const handleSelectionChange = (songId: string, isChecked: boolean) => {
+  // --- Start: Song Selection logic ---
+  const handleSongSelectionChange = (songId: string, isChecked: boolean) => {
     setSelectedSongIds(prev =>
       isChecked ? [...prev, songId] : prev.filter(id => id !== songId)
     );
   };
-  const handleSelectAll = (songs: Song[], isChecked: boolean) => {
+  const handleSelectAllSongs = (songs: Song[], isChecked: boolean) => {
     setSelectedSongIds(isChecked ? songs.map(s => s.id) : []);
   };
-  const clearSelection = () => {
+  const clearSongSelection = () => {
     setSelectedSongIds([]);
   }
-  // --- End: Selection logic ---
+  // --- End: Song Selection logic ---
 
   // --- Start: Setlist Selection logic ---
   const handleSetlistSelectionChange = (setlistId: string, isChecked: boolean) => {
@@ -413,7 +434,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         title: `Songs ${actionModalMode === 'move' ? 'Moved' : 'Copied'}`,
         description: `${songsToProcess.length} song(s) transferred successfully.`,
       });
-      clearSelection();
+      clearSongSelection();
       closeActionModal();
   };
 
@@ -430,9 +451,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     activeSong, setActiveSongId, activeSongId,
     importSetlists, reorderSongs, isLoading,
     
-    selectedSongIds, handleSelectionChange, handleSelectAll, clearSelection,
+    selectedSongIds, isSongSelectionModeActive, setIsSongSelectionModeActive, handleSongSelectionChange, handleSelectAllSongs, clearSongSelection,
 
-    selectedSetlistIds, handleSetlistSelectionChange, clearSetlistSelection,
+    selectedSetlistIds, isSetlistSelectionModeActive, setIsSetlistSelectionModeActive, handleSetlistSelectionChange, clearSetlistSelection,
 
     isActionModalOpen, actionModalMode, actionSource,
     openActionModal, closeActionModal, confirmSongAction,
