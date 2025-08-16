@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 
 interface AppContextType {
   workbooks: Workbook[];
+  setWorkbooks: React.Dispatch<React.SetStateAction<Workbook[]>>; // Expose setter
   addWorkbook: (name: string) => string;
   deleteWorkbook: (workbookId: string) => void;
   updateWorkbook: (workbookId: string, updatedWorkbook: Partial<Workbook>) => void;
@@ -207,75 +208,79 @@ export function AppProvider({ children }: { children: ReactNode }) {
     let songsToMove: Song[] = [];
     const songIdsSet = new Set(songIds);
 
-    // Find and extract songs to move
-    const workbooksAfterRemoval = workbooks.map(wb => {
-      if (wb.id === sourceWorkbookId) {
-        const setlists = wb.setlists.map(sl => {
-          if (sl.id === sourceSetlistId) {
-            songsToMove = sl.songs.filter(song => songIdsSet.has(song.id));
-            const remainingSongs = sl.songs.filter(song => !songIdsSet.has(song.id));
-            return { ...sl, songs: remainingSongs };
+    setWorkbooks(currentWorkbooks => {
+        // Find and extract songs to move
+        const workbooksAfterRemoval = currentWorkbooks.map(wb => {
+          if (wb.id === sourceWorkbookId) {
+            const setlists = wb.setlists.map(sl => {
+              if (sl.id === sourceSetlistId) {
+                songsToMove = sl.songs.filter(song => songIdsSet.has(song.id));
+                const remainingSongs = sl.songs.filter(song => !songIdsSet.has(song.id));
+                return { ...sl, songs: remainingSongs };
+              }
+              return sl;
+            });
+            return { ...wb, setlists };
           }
-          return sl;
+          return wb;
         });
-        return { ...wb, setlists };
-      }
-      return wb;
-    });
 
-    if (songsToMove.length === 0) return;
+        if (songsToMove.length === 0) return currentWorkbooks;
 
-    // Add songs to the destination setlist
-    const workbooksAfterAddition = workbooksAfterRemoval.map(wb => {
-      if (wb.id === destWorkbookId) {
-        const setlists = wb.setlists.map(sl => {
-          if (sl.id === destSetlistId) {
-            return { ...sl, songs: [...sl.songs, ...songsToMove] };
+        // Add songs to the destination setlist
+        const workbooksAfterAddition = workbooksAfterRemoval.map(wb => {
+          if (wb.id === destWorkbookId) {
+            const setlists = wb.setlists.map(sl => {
+              if (sl.id === destSetlistId) {
+                return { ...sl, songs: [...sl.songs, ...songsToMove] };
+              }
+              return sl;
+            });
+            return { ...wb, setlists };
           }
-          return sl;
+          return wb;
         });
-        return { ...wb, setlists };
-      }
-      return wb;
-    });
 
-    setWorkbooks(workbooksAfterAddition);
-    toast({ title: "Songs Moved", description: `${songsToMove.length} song(s) moved successfully.` });
+        toast({ title: "Songs Moved", description: `${songsToMove.length} song(s) moved successfully.` });
+        return workbooksAfterAddition;
+    });
   };
   
   const copySongs = (sourceWorkbookId: string, sourceSetlistId: string, songIds: string[], destWorkbookId: string, destSetlistId: string) => {
       let songsToCopy: Song[] = [];
       const songIdsSet = new Set(songIds);
 
-      const sourceWorkbook = workbooks.find(wb => wb.id === sourceWorkbookId);
-      if (!sourceWorkbook) return;
-      const sourceSetlist = sourceWorkbook.setlists.find(sl => sl.id === sourceSetlistId);
-      if (!sourceSetlist) return;
+      setWorkbooks(currentWorkbooks => {
+        const sourceWorkbook = currentWorkbooks.find(wb => wb.id === sourceWorkbookId);
+        if (!sourceWorkbook) return currentWorkbooks;
+        const sourceSetlist = sourceWorkbook.setlists.find(sl => sl.id === sourceSetlistId);
+        if (!sourceSetlist) return currentWorkbooks;
 
-      songsToCopy = sourceSetlist.songs.filter(song => songIdsSet.has(song.id));
+        songsToCopy = sourceSetlist.songs.filter(song => songIdsSet.has(song.id));
 
-      if (songsToCopy.length === 0) return;
-      
-      const copiedSongsWithNewIds = songsToCopy.map(song => ({
-        ...song,
-        id: `${Date.now()}-${Math.random()}` // Create a new unique ID
-      }));
+        if (songsToCopy.length === 0) return currentWorkbooks;
+        
+        const copiedSongsWithNewIds = songsToCopy.map(song => ({
+          ...song,
+          id: `${Date.now()}-${Math.random()}` // Create a new unique ID
+        }));
 
-      const workbooksAfterAddition = workbooks.map(wb => {
-        if (wb.id === destWorkbookId) {
-          const setlists = wb.setlists.map(sl => {
-            if (sl.id === destSetlistId) {
-              return { ...sl, songs: [...sl.songs, ...copiedSongsWithNewIds] };
-            }
-            return sl;
-          });
-          return { ...wb, setlists };
-        }
-        return wb;
+        const workbooksAfterAddition = currentWorkbooks.map(wb => {
+          if (wb.id === destWorkbookId) {
+            const setlists = wb.setlists.map(sl => {
+              if (sl.id === destSetlistId) {
+                return { ...sl, songs: [...sl.songs, ...copiedSongsWithNewIds] };
+              }
+              return sl;
+            });
+            return { ...wb, setlists };
+          }
+          return wb;
+        });
+
+        toast({ title: "Songs Copied", description: `${copiedSongsWithNewIds.length} song(s) copied successfully.` });
+        return workbooksAfterAddition;
       });
-
-      setWorkbooks(workbooksAfterAddition);
-      toast({ title: "Songs Copied", description: `${copiedSongsWithNewIds.length} song(s) copied successfully.` });
   };
   
   const importSetlists = (workbookId: string, importedSetlists: Setlist[]) => {
@@ -310,7 +315,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const activeSong = isLoading ? null : activeSetlist?.songs.find(s => s.id === activeSongId) || null;
 
   const value = {
-    workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook,
+    workbooks, setWorkbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook,
     activeWorkbook, setActiveWorkbookId: handleSetActiveWorkbookId, activeWorkbookId,
     setlists, addSetlist, updateSetlist, deleteSetlist,
     activeSetlist, setActiveSetlistId, activeSetlistId,

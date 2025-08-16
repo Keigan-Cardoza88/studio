@@ -22,7 +22,7 @@ interface SetlistViewProps {
 }
 
 export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
-  const { workbooks, addWorkbook, addSetlist, setActiveSongId, deleteSong, reorderSongs, moveSongs, copySongs } = useAppContext();
+  const { workbooks, setWorkbooks, addWorkbook, addSetlist, setActiveSongId, deleteSong, reorderSongs, moveSongs, copySongs } = useAppContext();
   const [songs, setSongs] = useState<Song[]>(setlist.songs);
   const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -93,6 +93,8 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     setModalMode(mode);
     setTargetWorkbookId(null);
     setTargetSetlistId(null);
+    setIsCreatingWorkbook(false);
+    setIsCreatingSetlist(false);
     setIsModalOpen(true);
   };
 
@@ -222,6 +224,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
                           onChange={(e) => setNewWorkbookName(e.target.value)} 
                           placeholder="New workbook name..."
                           autoFocus
+                          onKeyDown={(e) => e.key === 'Enter' && handleCreateWorkbook()}
                         />
                         <Button onClick={handleCreateWorkbook}>Create</Button>
                         <Button variant="ghost" onClick={() => setIsCreatingWorkbook(false)}>Cancel</Button>
