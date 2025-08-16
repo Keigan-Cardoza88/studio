@@ -141,7 +141,12 @@ export function SongView({ song, workbookId, setlistId, onBack }: SongViewProps)
                 <h1 className="text-lg font-bold font-headline">{song.title}</h1>
                 <p className="text-sm text-muted-foreground">{song.artist}</p>
                 </div>
-                <SongEditor workbookId={workbookId} setlistId={setlistId} song={song} />
+                <SongEditor 
+                  workbookId={workbookId} 
+                  setlistId={setlistId} 
+                  song={song}
+                  transposedLyrics={transposedLyrics}
+                />
             </div>
         </header>
 

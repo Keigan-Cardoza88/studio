@@ -10,11 +10,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose, DialogTrigger } from '@/components/ui/dialog';
 import { useForm, SubmitHandler } from 'react-hook-form';
 import { Edit, PlusCircle } from 'lucide-react';
+import { transpose } from '@/lib/transpose';
 
 interface SongEditorProps {
   workbookId: string;
   setlistId: string;
   song?: Song;
+  transposedLyrics?: string;
 }
 
 type Inputs = {
@@ -23,7 +25,7 @@ type Inputs = {
   lyricsWithChords: string;
 };
 
-export function SongEditor({ workbookId, setlistId, song }: SongEditorProps) {
+export function SongEditor({ workbookId, setlistId, song, transposedLyrics }: SongEditorProps) {
   const { addSong, updateSong } = useAppContext();
   const [isOpen, setIsOpen] = useState(false);
   const { register, handleSubmit, reset, setValue } = useForm<Inputs>();
@@ -33,16 +35,21 @@ export function SongEditor({ workbookId, setlistId, song }: SongEditorProps) {
         if (song) {
             setValue('title', song.title);
             setValue('artist', song.artist);
-            setValue('lyricsWithChords', song.lyricsWithChords);
+            setValue('lyricsWithChords', transposedLyrics ?? song.lyricsWithChords);
         } else {
             reset({ title: '', artist: '', lyricsWithChords: ''});
         }
     }
-  }, [song, setValue, reset, isOpen]);
+  }, [song, setValue, reset, isOpen, transposedLyrics]);
 
   const onSubmit: SubmitHandler<Inputs> = (data) => {
     if (song) {
-      updateSong(workbookId, setlistId, song.id, data);
+      // Revert the lyrics to 0 transpose before saving
+      const originalLyrics = transpose(data.lyricsWithChords, -song.transpose);
+      updateSong(workbookId, setlistId, song.id, { 
+        ...data,
+        lyricsWithChords: originalLyrics
+      });
     } else {
       addSong(workbookId, setlistId, data);
     }
