@@ -8,16 +8,16 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Upload, Share, Clipboard, ClipboardCheck, FilePenLine, Merge } from 'lucide-react';
+import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Share, Clipboard, ClipboardCheck, FilePenLine, Merge, Loader2 } from 'lucide-react';
 import { useForm, SubmitHandler } from "react-hook-form";
-import type { Setlist, Workbook } from '@/lib/types';
+import type { Workbook } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useLongPress } from '@/hooks/use-long-press';
 import { cn } from '@/lib/utils';
+import { shareWorkbook } from '@/lib/share';
 
 type Inputs = {
   name: string;
@@ -97,19 +97,18 @@ export function SetlistSidebar() {
   const { 
     workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook, 
     activeWorkbook, setActiveWorkbookId, addSetlist, activeSetlistId, setActiveSetlistId, 
-    deleteSetlist, importSetlists, activeWorkbookId, 
+    deleteSetlist, activeWorkbookId, 
     selectedSetlistIds, handleSetlistSelectionChange, isSetlistSelectionModeActive, setIsSetlistSelectionModeActive,
     clearSetlistSelection,
   } = useAppContext();
   const [isNewSetlistOpen, setIsNewSetlistOpen] = React.useState(false);
   const [isNewWorkbookOpen, setIsNewWorkbookOpen] = React.useState(false);
-  const [isImportOpen, setIsImportOpen] = React.useState(false);
-  const [importText, setImportText] = React.useState("");
-  const [workbookToImportTo, setWorkbookToImportTo] = React.useState<string | null>(null);
   const [isShareOpen, setIsShareOpen] = React.useState(false);
   const [editingWorkbookId, setEditingWorkbookId] = React.useState<string | null>(null);
   const [editingWorkbookName, setEditingWorkbookName] = React.useState("");
   const [hasCopied, setHasCopied] = React.useState(false);
+  const [shareUrl, setShareUrl] = React.useState('');
+  const [isSharing, setIsSharing] = React.useState(false);
 
 
   const { register, handleSubmit, reset } = useForm<Inputs>();
@@ -154,29 +153,28 @@ export function SetlistSidebar() {
     deleteSetlist(workbookId, setlistId);
   }
 
-  const handleImportClick = () => {
-    if (!activeWorkbookId) {
-       toast({ title: "No Workbook Selected", description: "Please select a workbook before importing.", variant: "destructive" });
-       return;
-    }
-    setWorkbookToImportTo(activeWorkbookId);
-    setImportText("");
-    setIsImportOpen(true);
-  };
-
-  const handleShareClick = () => {
+  const handleShareClick = async () => {
      if (!activeWorkbook) {
        toast({ title: "No Workbook Selected", description: "Please select a workbook to share.", variant: "destructive" });
        return;
     }
-    setHasCopied(false);
+    setIsSharing(true);
     setIsShareOpen(true);
+    try {
+      const id = await shareWorkbook(activeWorkbook);
+      const url = `${window.location.origin}/share/${id}`;
+      setShareUrl(url);
+    } catch(e) {
+      toast({ title: "Sharing Failed", description: "Could not generate share link. Please try again.", variant: "destructive" });
+      setIsShareOpen(false);
+    } finally {
+      setIsSharing(false);
+    }
   }
 
   const handleCopyToClipboard = () => {
-    if(!activeWorkbook) return;
-    const textToCopy = JSON.stringify(activeWorkbook.setlists, null, 2);
-    navigator.clipboard.writeText(textToCopy).then(() => {
+    if(!shareUrl) return;
+    navigator.clipboard.writeText(shareUrl).then(() => {
         setHasCopied(true);
         toast({ title: "Copied to clipboard!" });
         setTimeout(() => setHasCopied(false), 2000);
@@ -185,26 +183,6 @@ export function SetlistSidebar() {
     });
   }
 
-  const handleImportFromText = () => {
-    if (!workbookToImportTo) {
-        toast({ title: "No destination selected", description: "Please select the workbook to import into.", variant: "destructive"});
-        return;
-    };
-    try {
-        const importedData = JSON.parse(importText);
-        if (Array.isArray(importedData) && importedData.every(s => s.id && s.name && Array.isArray(s.songs))) {
-          importSetlists(workbookToImportTo, importedData as Setlist[]);
-        } else {
-          throw new Error("Invalid data format. Please paste the exact text copied from the share dialog.");
-        }
-        setIsImportOpen(false);
-        setImportText("");
-    } catch (error) {
-        toast({ title: "Import Failed", description: error instanceof Error ? error.message : "An unknown error occurred.", variant: "destructive" });
-    }
-  }
-
-  
   const handleMoveSetlist = (setlistId: string, fromWorkbookId: string, toWorkbookId: string) => {
     if (fromWorkbookId === toWorkbookId) return;
     moveSetlistToWorkbook(setlistId, fromWorkbookId, toWorkbookId);
@@ -427,53 +405,9 @@ export function SetlistSidebar() {
                 </SidebarMenuItem>
             )}
             <SidebarMenuItem>
-              <Button variant="ghost" className="w-full justify-start" onClick={handleImportClick}>
-                <Upload className="mr-2 h-4 w-4" />
-                Import from Text
-              </Button>
-              <Dialog open={isImportOpen} onOpenChange={setIsImportOpen}>
-                 <DialogContent className="sm:max-w-xl">
-                   <DialogHeader>
-                     <DialogTitle>Import Setlists from Text</DialogTitle>
-                     <DialogDescription>Paste the text from a shared workbook below.</DialogDescription>
-                   </DialogHeader>
-                    <div className="grid gap-4 py-4">
-                        <div className="grid gap-2">
-                            <label className="text-sm font-medium">Import into Workbook</label>
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="outline" className="w-full justify-between">
-                                  {workbooks.find(w => w.id === workbookToImportTo)?.name || "Select a workbook"}
-                                  <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent className="w-[var(--radix-dropdown-menu-trigger-width)]">
-                                {workbooks.map(w => (
-                                  <DropdownMenuItem key={w.id} onSelect={() => setWorkbookToImportTo(w.id)}>
-                                    {w.name}
-                                  </DropdownMenuItem>
-                                ))}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                        </div>
-                        <Textarea 
-                            value={importText}
-                            onChange={(e) => setImportText(e.target.value)}
-                            placeholder="Paste shared setlist data here..."
-                            className="h-48 font-mono"
-                        />
-                    </div>
-                    <DialogFooter>
-                      <DialogClose asChild><Button type="button" variant="secondary">Cancel</Button></DialogClose>
-                      <Button onClick={handleImportFromText} disabled={!importText || !workbookToImportTo}>Import</Button>
-                    </DialogFooter>
-                 </DialogContent>
-              </Dialog>
-            </SidebarMenuItem>
-            <SidebarMenuItem>
                <Dialog open={isShareOpen} onOpenChange={setIsShareOpen}>
                   <DialogTrigger asChild>
-                    <Button variant="ghost" className="w-full justify-start" onClick={handleShareClick}>
+                    <Button variant="ghost" className="w-full justify-start" onClick={handleShareClick} disabled={!activeWorkbook}>
                       <Share className="mr-2 h-4 w-4" />
                       Share Workbook
                     </Button>
@@ -481,20 +415,28 @@ export function SetlistSidebar() {
                   <DialogContent className="sm:max-w-xl">
                     <DialogHeader>
                         <DialogTitle>Share "{activeWorkbook?.name}"</DialogTitle>
-                        <DialogDescription>Copy the text below and send it to your friends. They can import it using the "Import from Text" button.</DialogDescription>
+                        <DialogDescription>
+                            Copy the link below and send it to your friends. They can open it to import the workbook.
+                        </DialogDescription>
                     </DialogHeader>
                     <div className="relative py-4">
-                      <Textarea 
-                        readOnly 
-                        value={activeWorkbook ? JSON.stringify(activeWorkbook.setlists, null, 2) : ""} 
-                        className="h-64 font-mono"
-                       />
+                      {isSharing ? (
+                        <div className="flex items-center justify-center h-24">
+                          <Loader2 className="h-8 w-8 animate-spin text-accent" />
+                        </div>
+                      ) : (
+                        <Input 
+                          readOnly 
+                          value={shareUrl} 
+                          className="font-mono"
+                         />
+                      )}
                     </div>
                     <DialogFooter>
                       <DialogClose asChild><Button type="button" variant="secondary">Done</Button></DialogClose>
-                      <Button onClick={handleCopyToClipboard}>
+                      <Button onClick={handleCopyToClipboard} disabled={isSharing || !shareUrl}>
                         {hasCopied ? <ClipboardCheck className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
-                        {hasCopied ? "Copied!" : "Copy to Clipboard"}
+                        {hasCopied ? "Copied!" : "Copy Link"}
                       </Button>
                     </DialogFooter>
                   </DialogContent>

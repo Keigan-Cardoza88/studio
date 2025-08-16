@@ -23,6 +23,7 @@ interface AppContextType {
   updateSetlist: (workbookId: string, setlistId: string, updatedSetlist: Partial<Setlist>) => void;
   deleteSetlist: (workbookId: string, setlistId: string) => void;
   mergeSetlists: (workbookId: string, setlistIds: string[], newName: string) => void;
+  importSharedWorkbook: (sharedWorkbook: Workbook) => void;
   
   activeSetlist: Setlist | null;
   setActiveSetlistId: (id: string | null) => void;
@@ -36,7 +37,6 @@ interface AppContextType {
   setActiveSongId: (id: string | null) => void;
   activeSongId: string | null;
   
-  importSetlists: (workbookId: string, importedSetlists: Setlist[]) => void;
   reorderSongs: (workbookId: string, setlistId: string, songs: Song[]) => void;
   isLoading: boolean;
 
@@ -298,20 +298,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (activeSongId === songId) setActiveSongId(null);
   };
   
-  const importSetlists = (workbookId: string, importedSetlists: Setlist[]) => {
-    setWorkbooks(prev => prev.map(w => {
-      if (w.id === workbookId) {
-        const currentIds = new Set(w.setlists.map(s => s.id));
-        const newSetlists = importedSetlists.filter(s => !currentIds.has(s.id));
-        if (newSetlists.length === 0) {
-          toast({ title: "No new setlists to import", description: "All setlists from the file already exist in this workbook." });
-          return w;
+  const importSharedWorkbook = (sharedWorkbook: Workbook) => {
+    setWorkbooks(prev => {
+        const existingWorkbook = prev.find(w => w.id === sharedWorkbook.id);
+        if (existingWorkbook) {
+            toast({
+                title: "Workbook exists",
+                description: `You already have a workbook named "${existingWorkbook.name}".`,
+            });
+            // Optionally, you could merge them here. For now, we do nothing.
+            return prev;
         }
-        toast({ title: "Import Successful", description: `${newSetlists.length} new setlist(s) added to "${w.name}".`});
-        return { ...w, setlists: [...w.setlists, ...newSetlists] };
-      }
-      return w;
-    }));
+        toast({
+            title: "Workbook Imported",
+            description: `Successfully imported "${sharedWorkbook.name}".`,
+        });
+        return [...prev, sharedWorkbook];
+    });
+    handleSetActiveWorkbookId(sharedWorkbook.id);
   };
 
   const reorderSongs = (workbookId: string, setlistId: string, songs: Song[]) => {
@@ -448,11 +452,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = {
     workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook,
     activeWorkbook, setActiveWorkbookId: handleSetActiveWorkbookId, activeWorkbookId,
-    addSetlist, updateSetlist, deleteSetlist, mergeSetlists,
+    addSetlist, updateSetlist, deleteSetlist, mergeSetlists, importSharedWorkbook,
     activeSetlist, setActiveSetlistId, activeSetlistId,
     addSong, updateSong, deleteSong,
     activeSong, setActiveSongId, activeSongId,
-    importSetlists, reorderSongs, isLoading,
+    reorderSongs, isLoading,
     
     selectedSongIds, isSongSelectionModeActive, setIsSongSelectionModeActive, handleSongSelectionChange, handleSelectAllSongs, clearSongSelection,
 
@@ -472,5 +476,3 @@ export function useAppContext() {
   }
   return context;
 }
-
-    
