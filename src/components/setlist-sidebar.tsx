@@ -153,24 +153,30 @@ export function SetlistSidebar() {
     deleteSetlist(workbookId, setlistId);
   }
 
-  const handleShareClick = async () => {
+  const handleShareClick = () => {
      if (!activeWorkbook) {
        toast({ title: "No Workbook Selected", description: "Please select a workbook to share.", variant: "destructive" });
        return;
     }
-    setIsSharing(true);
     setIsShareOpen(true);
+    generateShareLink();
+  }
+
+  const generateShareLink = async () => {
+    if (!activeWorkbook) return;
+    setIsSharing(true);
+    setShareUrl('');
     try {
       const id = await shareWorkbook(activeWorkbook);
       const url = `${window.location.origin}/share/${id}`;
       setShareUrl(url);
     } catch(e) {
       toast({ title: "Sharing Failed", description: "Could not generate share link. Please try again.", variant: "destructive" });
-      setIsShareOpen(false);
+      setIsShareOpen(false); // Close dialog on failure
     } finally {
       setIsSharing(false);
     }
-  }
+  };
 
   const handleCopyToClipboard = () => {
     if(!shareUrl) return;
