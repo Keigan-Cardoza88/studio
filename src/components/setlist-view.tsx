@@ -154,21 +154,18 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     }
   }
 
-  const handleCreateSetlist = (isConfirming: boolean) => {
-    if (newSetlistName.trim() && targetWorkbookId) {
+  const handleCreateSetlist = () => {
+    if (newSetlistName.trim() && targetWorkbookId && modalMode) {
       const newSetlistId = addSetlist(targetWorkbookId, newSetlistName.trim());
       setTargetSetlistId(newSetlistId);
       setNewSetlistName("");
       setIsCreatingSetlist(false);
 
-      if (isConfirming && modalMode && targetWorkbookId) {
-        // Defer the action until after the state update
-         setPendingAction({
-          mode: modalMode,
-          targetWorkbookId: targetWorkbookId,
-          targetSetlistId: newSetlistId,
-        });
-      }
+       setPendingAction({
+        mode: modalMode,
+        targetWorkbookId: targetWorkbookId,
+        targetSetlistId: newSetlistId,
+      });
     }
   }
 
@@ -299,9 +296,9 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
                           onChange={(e) => setNewSetlistName(e.target.value)} 
                           placeholder="New setlist name..."
                           autoFocus
-                          onKeyDown={(e) => e.key === 'Enter' && handleCreateSetlist(true)}
+                          onKeyDown={(e) => e.key === 'Enter' && handleCreateSetlist()}
                         />
-                        <Button onClick={() => handleCreateSetlist(true)}>Create & {modalMode}</Button>
+                        <Button onClick={handleCreateSetlist}>Create</Button>
                         <Button variant="ghost" onClick={() => setIsCreatingSetlist(false)}>Cancel</Button>
                       </div>
                     ) : (
@@ -335,3 +332,5 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     </div>
   );
 }
+
+    
