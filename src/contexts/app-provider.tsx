@@ -30,6 +30,8 @@ interface AppContextType {
   addSong: (workbookId: string, setlistId: string, song: Omit<Song, 'id' | 'transpose' | 'scrollSpeed'>) => void;
   updateSong: (workbookId: string, setlistId: string, songId: string, updatedSong: Partial<Song>) => void;
   deleteSong: (workbookId: string, setlistId: string, songId: string) => void;
+  moveSongs: (sourceWbId: string, sourceSlId: string, songIds: string[], destWbId: string, destSlId: string) => void;
+  copySongs: (sourceWbId: string, sourceSlId: string, songIds: string[], destWbId: string, destSlId: string) => void;
   
   activeSong: Song | null;
   setActiveSongId: (id: string | null) => void;
@@ -102,7 +104,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const moveSetlistToWorkbook = (setlistId: string, fromWorkbookId: string, toWorkbookId: string) => {
     let setlistToMove: Setlist | null = null;
     
-    // Remove from old workbook
     const updatedWorkbooks = workbooks.map(w => {
       if (w.id === fromWorkbookId) {
         setlistToMove = w.setlists.find(s => s.id === setlistId) || null;
@@ -113,7 +114,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     if (!setlistToMove) return;
 
-    // Add to new workbook
     const finalWorkbooks = updatedWorkbooks.map(w => {
       if (w.id === toWorkbookId) {
         return { ...w, setlists: [...w.setlists, setlistToMove!] };
@@ -126,10 +126,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setActiveSetlistId(null);
         setActiveWorkbookId(toWorkbookId);
     }
-    toast({
-      title: "Setlist Moved",
-      description: `Successfully moved setlist to new workbook.`,
-    });
   };
 
   const addSetlist = (workbookId: string, name: string): string => {
@@ -234,6 +230,85 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }));
   };
 
+  const performSongAction = (
+    sourceWbId: string,
+    sourceSlId: string,
+    songIds: string[],
+    destWbId: string,
+    destSlId: string,
+    mode: 'move' | 'copy'
+  ) => {
+    let songsToProcess: Song[] = [];
+    const songIdsSet = new Set(songIds);
+
+    const sourceWorkbook = workbooks.find(wb => wb.id === sourceWbId);
+    const sourceSetlist = sourceWorkbook?.setlists.find(sl => sl.id === sourceSlId);
+
+    if (!sourceSetlist) {
+      toast({ title: "Error", description: "Source setlist not found.", variant: "destructive" });
+      return;
+    }
+
+    songsToProcess = sourceSetlist.songs.filter(song => songIdsSet.has(song.id));
+    if (songsToProcess.length === 0) {
+      toast({ title: "Error", description: "Source songs not found.", variant: "destructive" });
+      return;
+    }
+
+    setWorkbooks(currentWorkbooks => {
+      let updatedWorkbooks = [...currentWorkbooks];
+
+      // Add songs to destination
+      updatedWorkbooks = updatedWorkbooks.map(wb => {
+        if (wb.id === destWbId) {
+          const destSetlists = wb.setlists.map(sl => {
+            if (sl.id === destSlId) {
+              const songsToAdd = mode === 'copy'
+                ? songsToProcess.map(song => ({ ...song, id: `${Date.now()}-${Math.random()}` }))
+                : songsToProcess;
+              return { ...sl, songs: [...sl.songs, ...songsToAdd] };
+            }
+            return sl;
+          });
+          return { ...wb, setlists: destSetlists };
+        }
+        return wb;
+      });
+
+      // Remove songs from source if moving
+      if (mode === 'move') {
+        updatedWorkbooks = updatedWorkbooks.map(wb => {
+          if (wb.id === sourceWbId) {
+            const sourceSetlists = wb.setlists.map(sl => {
+              if (sl.id === sourceSlId) {
+                const remainingSongs = sl.songs.filter(song => !songIdsSet.has(song.id));
+                return { ...sl, songs: remainingSongs };
+              }
+              return sl;
+            });
+            return { ...wb, setlists: sourceSetlists };
+          }
+          return wb;
+        });
+      }
+
+      return updatedWorkbooks;
+    });
+
+    toast({
+      title: `Songs ${mode === 'move' ? 'Moved' : 'Copied'}`,
+      description: `${songsToProcess.length} song(s) transferred successfully.`,
+    });
+  };
+
+  const moveSongs = (sourceWbId: string, sourceSlId: string, songIds: string[], destWbId: string, destSlId: string) => {
+    performSongAction(sourceWbId, sourceSlId, songIds, destWbId, destSlId, 'move');
+  };
+
+  const copySongs = (sourceWbId: string, sourceSlId: string, songIds: string[], destWbId: string, destSlId: string) => {
+    performSongAction(sourceWbId, sourceSlId, songIds, destWbId, destSlId, 'copy');
+  };
+
   const activeWorkbook = isLoading ? null : workbooks.find(w => w.id === activeWorkbookId) || null;
   const setlists = activeWorkbook?.setlists || [];
   const activeSetlist = isLoading ? null : setlists.find(s => s.id === activeSetlistId) || null;
@@ -244,7 +319,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     activeWorkbook, setActiveWorkbookId: handleSetActiveWorkbookId, activeWorkbookId,
     setlists, addSetlist, updateSetlist, deleteSetlist,
     activeSetlist, setActiveSetlistId, activeSetlistId,
-    addSong, updateSong, deleteSong,
+    addSong, updateSong, deleteSong, moveSongs, copySongs,
     activeSong, setActiveSongId, activeSongId,
     importSetlists, reorderSongs, isLoading,
   };

@@ -24,7 +24,7 @@ interface SetlistViewProps {
 type ModalMode = 'move' | 'copy';
 
 export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
-  const { workbooks, setWorkbooks, addWorkbook, addSetlist, setActiveSongId, deleteSong, reorderSongs } = useAppContext();
+  const { workbooks, addWorkbook, addSetlist, setActiveSongId, deleteSong, reorderSongs, moveSongs, copySongs } = useAppContext();
   const [songs, setSongs] = useState<Song[]>(setlist.songs);
   const [selectedSongIds, setSelectedSongIds] = useState<string[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -108,73 +108,23 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     setTargetWorkbookId(null);
     setTargetSetlistId(null);
     setIsCreatingWorkbook(false);
+    setNewWorkbookName("");
     setIsCreatingSetlist(false);
+    setNewSetlistName("");
     setIsModalOpen(true);
   };
 
   const handleConfirmAction = () => {
-    if (!modalMode || !targetWorkbookId || !targetSetlistId) {
-      toast({ title: "Selection Missing", description: "Please select a destination workbook and setlist.", variant: "destructive" });
+    if (!modalMode || !targetWorkbookId || !targetSetlistId || selectedSongIds.length === 0) {
+      toast({ title: "Selection Missing", description: "Please select destination and at least one song.", variant: "destructive" });
       return;
     }
     
-    const allWorkbooksRaw = window.localStorage.getItem('workbooks_v2');
-    if (!allWorkbooksRaw) {
-      toast({title: "Error", description: "Could not retrieve latest workbook data.", variant: "destructive"});
-      return;
+    if (modalMode === 'move') {
+      moveSongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, targetSetlistId);
+    } else {
+      copySongs(workbookId, setlist.id, selectedSongIds, targetWorkbookId, targetSetlistId);
     }
-    const allWorkbooks: Workbook[] = JSON.parse(allWorkbooksRaw);
-
-    let songsToProcess: Song[] = [];
-    const songIdsSet = new Set(selectedSongIds);
-    let sourceSetlist: Setlist | undefined;
-
-    const sourceWorkbook = allWorkbooks.find(wb => wb.id === workbookId);
-    if(sourceWorkbook) {
-        sourceSetlist = sourceWorkbook.setlists.find(sl => sl.id === setlist.id);
-        if(sourceSetlist) {
-            songsToProcess = sourceSetlist.songs.filter(song => songIdsSet.has(song.id));
-        }
-    }
-
-    if (songsToProcess.length === 0) {
-        toast({title: "Source songs not found", variant: "destructive"});
-        return;
-    }
-
-    const updatedWorkbooks = allWorkbooks.map(wb => {
-      // Add songs to destination
-      if (wb.id === targetWorkbookId) {
-        const destSetlists = wb.setlists.map(sl => {
-          if (sl.id === targetSetlistId) {
-            const songsToCopy = modalMode === 'copy' 
-                ? songsToProcess.map(song => ({ ...song, id: `${Date.now()}-${Math.random()}` })) 
-                : songsToProcess;
-            return { ...sl, songs: [...sl.songs, ...songsToCopy] };
-          }
-          return sl;
-        });
-        return { ...wb, setlists: destSetlists };
-      }
-      return wb;
-    }).map(wb => {
-        // Remove songs from source if moving
-        if (modalMode === 'move' && wb.id === workbookId) {
-            const sourceSetlists = wb.setlists.map(sl => {
-                if (sl.id === setlist.id) {
-                    const remainingSongs = sl.songs.filter(song => !songIdsSet.has(song.id));
-                    return { ...sl, songs: remainingSongs };
-                }
-                return sl;
-            });
-            return { ...wb, setlists: sourceSetlists };
-        }
-        return wb;
-    });
-
-    setWorkbooks(updatedWorkbooks);
-    
-    toast({ title: `Songs ${modalMode === 'move' ? 'Moved' : 'Copied'}`, description: `${songsToProcess.length} song(s) transferred successfully.` });
 
     setIsModalOpen(false);
     setSelectedSongIds([]);
@@ -198,7 +148,6 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
       setIsCreatingSetlist(false);
     }
   }
-
 
   const isSelectionMode = selectedSongIds.length > 0;
   const allSongsSelected = songs.length > 0 && selectedSongIds.length === songs.length;
