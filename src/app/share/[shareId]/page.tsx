@@ -4,14 +4,14 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { getSharedWorkbook } from '@/lib/share';
-import { useAppContext } from '@/contexts/app-provider';
+import { AppProvider, useAppContext } from '@/contexts/app-provider';
 import type { Workbook } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
 import { Loader2, ShieldCheck, Share2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
-export default function SharePage() {
+function SharePageContent() {
     const router = useRouter();
     const params = useParams();
     const { shareId } = params;
@@ -125,4 +125,13 @@ export default function SharePage() {
             </Card>
         </div>
     );
+}
+
+
+export default function SharePage() {
+    return (
+        <AppProvider>
+            <SharePageContent />
+        </AppProvider>
+    )
 }
