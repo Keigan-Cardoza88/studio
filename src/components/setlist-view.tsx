@@ -193,7 +193,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
   const { 
       setActiveSongId, deleteSong, reorderSongs, openActionModal, 
       selectedSongIds, handleSongSelectionChange, handleSelectAllSongs,
-      isSongSelectionModeActive, setIsSongSelectionModeActive
+      isSongSelectionModeActive, setIsSongSelectionModeActive, clearSongSelection
   } = useAppContext();
   
   const [songs, setSongs] = useState<Song[]>(setlist.songs);
@@ -279,6 +279,12 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
               <>
                   <Button onClick={() => openActionModal('move', workbookId, setlist.id)}><Move className="mr-2"/> Move</Button>
                   <Button onClick={() => openActionModal('copy', workbookId, setlist.id)}><Copy className="mr-2"/> Copy</Button>
+                  <Button variant="ghost" onClick={() => {
+                       clearSongSelection();
+                       setIsSongSelectionModeActive(false);
+                  }}>
+                      Cancel
+                  </Button>
               </>
           ) : (
             <SongEditor workbookId={workbookId} setlistId={setlist.id} />
@@ -310,7 +316,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
                 data-song-id={song.id}
               >
                 <CardContent className="p-4 flex items-center justify-between">
-                  <div className={cn("flex items-center gap-4 flex-grow", !isSongSelectionModeActive && "cursor-pointer")}>
+                  <div className={cn("flex items-center gap-4 flex-grow", isSongSelectionModeActive ? 'cursor-default' : 'cursor-pointer')}>
                     {!isSongSelectionModeActive && <GripVertical className="h-5 w-5 text-muted-foreground transition-opacity duration-300 opacity-0 group-hover:opacity-100" />}
                     <div className="text-muted-foreground w-6 text-center">{index + 1}</div>
                     <Music className="h-6 w-6 text-accent" />
@@ -320,7 +326,7 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
                     </div>
                   </div>
                   {!isSongSelectionModeActive && (
-                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteSong(workbookId, setlist.id, song.id) }}>
+                    <Button variant="ghost" size="icon" onClick={(e) => { e.stopPropagation(); deleteSong(workbookId, setlist.id, song.id); }}>
                       <Trash2 className="h-4 w-4 text-destructive" />
                     </Button>
                   )}
@@ -339,3 +345,4 @@ export function SetlistView({ workbookId, setlist }: SetlistViewProps) {
     </div>
   );
 }
+
