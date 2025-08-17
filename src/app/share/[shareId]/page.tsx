@@ -35,10 +35,10 @@ export default function DeprecatedSharePage() {
                     </CardDescription>
                 </CardHeader>
                 <CardContent>
-                    <p>
+                    <p className="p-0">
                         The app now uses a copy-and-paste text method for sharing. Please ask your friend to generate a new share code from their app.
                     </p>
-                    <p className="text-muted-foreground mt-4 text-sm">
+                    <p className="text-muted-foreground mt-4 text-sm p-0">
                         You will be redirected to the homepage shortly.
                     </p>
                 </CardContent>
