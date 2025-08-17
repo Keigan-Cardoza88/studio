@@ -12,7 +12,8 @@ function fromBase64(str: string): Uint8Array {
 
 export function encodeWorkbook(workbook: Workbook): string {
     const jsonString = JSON.stringify(workbook);
-    const compressed = pako.deflate(jsonString);
+    // Use the highest compression level (9) for the smallest output size.
+    const compressed = pako.deflate(jsonString, { level: 9 });
     return toBase64(compressed);
 }
 
