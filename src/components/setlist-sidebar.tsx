@@ -7,18 +7,18 @@ import { Sidebar, SidebarHeader, SidebarContent, SidebarMenu, SidebarMenuItem, S
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Share, Clipboard, ClipboardCheck, FilePenLine, Merge, Loader2, Link } from 'lucide-react';
+import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Share, Clipboard, ClipboardCheck, FilePenLine, Merge, Loader2, FileInput } from 'lucide-react';
 import { useForm, SubmitHandler } from "react-hook-form";
 import type { Workbook, Setlist } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useLongPress } from '@/hooks/use-long-press';
 import { cn } from '@/lib/utils';
-import { shareWorkbook } from '@/lib/share';
-import { useRouter } from 'next/navigation';
+import { encodeWorkbook, decodeWorkbook } from '@/lib/share';
 
 
 type Inputs = {
@@ -30,61 +30,59 @@ type MergeInputs = {
 }
 
 type ImportInputs = {
-  url: string;
+  data: string;
 };
 
 function ImportDialog() {
+  const { importSharedWorkbook, mergeImportedWorkbook, workbooks } = useAppContext();
   const [isOpen, setIsOpen] = React.useState(false);
-  const { register, handleSubmit, formState: { errors } } = useForm<ImportInputs>();
-  const router = useRouter();
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<ImportInputs>();
   const { toast } = useToast();
 
-  const onSubmit: SubmitHandler<ImportInputs> = (data) => {
-    try {
-      const url = new URL(data.url);
-      const pathSegments = url.pathname.split('/');
-      const shareId = pathSegments[pathSegments.length - 1];
-
-      if (pathSegments[pathSegments.length - 2] !== 'share' || !shareId) {
-        throw new Error("Invalid share link format.");
-      }
-      
-      router.push(`/share/${shareId}`);
-      setIsOpen(false);
-
-    } catch (e) {
-      console.error(e);
-      toast({
-        title: "Invalid Link",
-        description: "Please paste a valid workbook share link.",
-        variant: "destructive"
-      });
+  const onSubmit: SubmitHandler<ImportInputs> = (formData) => {
+    const importedWorkbook = decodeWorkbook(formData.data);
+    if (!importedWorkbook) {
+        toast({
+            title: "Import Failed",
+            description: "The provided text is not a valid workbook. Please check and try again.",
+            variant: "destructive"
+        });
+        return;
     }
+
+    const existing = workbooks.find(w => w.id === importedWorkbook.id);
+    if (existing) {
+        mergeImportedWorkbook(importedWorkbook);
+    } else {
+        importSharedWorkbook(importedWorkbook);
+    }
+    reset();
+    setIsOpen(false);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogTrigger asChild>
         <Button variant="ghost" className="w-full justify-start">
-          <Link className="mr-2 h-4 w-4" />
-          Import from Link
+          <FileInput className="mr-2 h-4 w-4" />
+          Import from Text
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Import Workbook from Link</DialogTitle>
+          <DialogTitle>Import Workbook from Text</DialogTitle>
           <DialogDescription>
-            Paste the share link you received to import the workbook.
+            Paste the text code you received to import the workbook.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit(onSubmit)}>
           <div className="py-4">
-             <Input 
-                {...register("url", { required: "A share link is required." })} 
-                placeholder="https://..." 
-                className="my-4" 
+             <Textarea 
+                {...register("data", { required: "A text code is required." })} 
+                placeholder="Paste the code here..." 
+                className="my-4 h-32 font-mono text-xs" 
              />
-             {errors.url && <p className="text-sm text-destructive">{errors.url.message}</p>}
+             {errors.data && <p className="text-sm text-destructive">{errors.data.message}</p>}
           </div>
           <DialogFooter>
             <DialogClose asChild>
@@ -180,8 +178,8 @@ export function SetlistSidebar() {
   const [editingSetlistId, setEditingSetlistId] = React.useState<string | null>(null);
   const [editingSetlistName, setEditingSetlistName] = React.useState("");
   const [hasCopied, setHasCopied] = React.useState(false);
-  const [shareUrl, setShareUrl] = React.useState('');
-  const [isSharing, setIsSharing] = React.useState(false);
+  const [shareCode, setShareCode] = React.useState('');
+  const [isGenerating, setIsGenerating] = React.useState(false);
 
 
   const { register, handleSubmit, reset } = useForm<Inputs>();
@@ -251,39 +249,36 @@ export function SetlistSidebar() {
     setIsShareOpen(true);
   }
 
-  const generateShareLink = React.useCallback(async () => {
+  const generateShareCode = React.useCallback(() => {
     if (!activeWorkbook) return;
 
-    setIsSharing(true);
-    setShareUrl('');
-    console.log("DEBUG: generateShareLink started.");
-
-    try {
-      console.log("DEBUG: Sharing workbook:", activeWorkbook);
-      const id = await shareWorkbook(activeWorkbook);
-      const url = `${window.location.origin}/share/${id}`;
-      console.log("DEBUG: Share link generated:", { id, url });
-      setShareUrl(url);
-    } catch (e) {
-      console.error("DEBUG: Sharing failed with error:", e);
-      toast({ title: "Sharing Failed", description: "Could not generate share link. Please try again.", variant: "destructive" });
-      setIsShareOpen(false); 
-      setIsSharing(false);
-    } finally {
-        setIsSharing(false);
-        console.log("DEBUG: generateShareLink finished.");
-    }
+    setIsGenerating(true);
+    setShareCode('');
+    
+    // Encoding can be quick, but we use a timeout to give feedback to the user
+    setTimeout(() => {
+        try {
+          const code = encodeWorkbook(activeWorkbook);
+          setShareCode(code);
+        } catch (e) {
+          console.error("Sharing failed with error:", e);
+          toast({ title: "Sharing Failed", description: "Could not generate share code. Please try again.", variant: "destructive" });
+          setIsShareOpen(false); 
+        } finally {
+            setIsGenerating(false);
+        }
+    }, 250); // Small delay
   }, [activeWorkbook, toast]);
 
   React.useEffect(() => {
     if (isShareOpen) {
-        generateShareLink();
+        generateShareCode();
     }
-  }, [isShareOpen, generateShareLink]);
+  }, [isShareOpen, generateShareCode]);
 
   const handleCopyToClipboard = () => {
-    if(!shareUrl) return;
-    navigator.clipboard.writeText(shareUrl).then(() => {
+    if(!shareCode) return;
+    navigator.clipboard.writeText(shareCode).then(() => {
         setHasCopied(true);
         toast({ title: "Copied to clipboard!" });
         setTimeout(() => setHasCopied(false), 2000);
@@ -553,27 +548,27 @@ export function SetlistSidebar() {
                     <DialogHeader>
                         <DialogTitle>Share "{activeWorkbook?.name}"</DialogTitle>
                         <DialogDescription>
-                            Copy the link below and send it to your friends. They can open it to import the workbook.
+                            Copy the code below and send it to your friends. They can use it to import the workbook.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="relative py-4">
-                      {isSharing ? (
+                      {isGenerating ? (
                         <div className="flex items-center justify-center h-24">
                           <Loader2 className="h-8 w-8 animate-spin text-accent" />
                         </div>
                       ) : (
-                        <Input 
+                        <Textarea 
                           readOnly 
-                          value={shareUrl} 
-                          className="font-mono"
+                          value={shareCode} 
+                          className="font-mono h-32 text-xs"
                          />
                       )}
                     </div>
                     <DialogFooter>
                       <DialogClose asChild><Button type="button" variant="secondary">Done</Button></DialogClose>
-                      <Button onClick={handleCopyToClipboard} disabled={isSharing || !shareUrl}>
+                      <Button onClick={handleCopyToClipboard} disabled={isGenerating || !shareCode}>
                         {hasCopied ? <ClipboardCheck className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
-                        {hasCopied ? "Copied!" : "Copy Link"}
+                        {hasCopied ? "Copied!" : "Copy Code"}
                       </Button>
                     </DialogFooter>
                   </DialogContent>

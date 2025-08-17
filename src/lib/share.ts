@@ -1,30 +1,33 @@
 
-import { doc, getDoc, collection, addDoc } from 'firebase/firestore';
-import { db } from './firebase';
+import pako from 'pako';
 import type { Workbook } from './types';
 
-const shareCollectionRef = collection(db, 'shared-workbooks');
-
-export async function shareWorkbook(workbook: Workbook): Promise<string> {
-    // Create a new document with a unique, auto-generated ID
-    const docRef = await addDoc(shareCollectionRef, {
-        ...workbook,
-        sharedAt: new Date(),
-    });
-    return docRef.id;
+function toBase64(arr: Uint8Array): string {
+    return btoa(String.fromCharCode.apply(null, Array.from(arr)));
 }
 
-export async function getSharedWorkbook(shareId: string): Promise<Workbook | null> {
-    const docRef = doc(db, 'shared-workbooks', shareId);
-    const docSnap = await getDoc(docRef);
+function fromBase64(str: string): Uint8Array {
+    return new Uint8Array(atob(str).split('').map(c => c.charCodeAt(0)));
+}
 
-    if (docSnap.exists()) {
-        const data = docSnap.data();
-        // We can remove the sharedAt date before returning the workbook
-        const { sharedAt, ...workbook } = data;
-        return workbook as Workbook;
-    } else {
-        console.error("No such document!");
+export function encodeWorkbook(workbook: Workbook): string {
+    const jsonString = JSON.stringify(workbook);
+    const compressed = pako.deflate(jsonString);
+    return toBase64(compressed);
+}
+
+export function decodeWorkbook(encoded: string): Workbook | null {
+    try {
+        const compressed = fromBase64(encoded);
+        const jsonString = pako.inflate(compressed, { to: 'string' });
+        const workbook = JSON.parse(jsonString);
+        // Basic validation
+        if (workbook && workbook.id && workbook.name && Array.isArray(workbook.setlists)) {
+            return workbook as Workbook;
+        }
+        return null;
+    } catch (e) {
+        console.error("Failed to decode workbook:", e);
         return null;
     }
 }

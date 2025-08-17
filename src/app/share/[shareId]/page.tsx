@@ -1,138 +1,48 @@
 
 "use client";
 
-import { useEffect, useState } from 'react';
-import { useParams, useRouter } from 'next/navigation';
-import { getSharedWorkbook } from '@/lib/share';
-import { AppProvider, useAppContext } from '@/contexts/app-provider';
-import type { Workbook } from '@/lib/types';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from '@/components/ui/card';
-import { Loader2, ShieldCheck, Share2, Merge } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
+// This page is no longer used for sharing via link, 
+// but is kept to prevent breaking old links.
+// It can be removed in the future.
 
-function SharePageContent() {
+import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { AlertTriangle } from 'lucide-react';
+
+export default function DeprecatedSharePage() {
     const router = useRouter();
-    const params = useParams();
-    const { shareId } = params;
-    const { workbooks, importSharedWorkbook, mergeImportedWorkbook } = useAppContext();
-    const { toast } = useToast();
-    
-    const [workbook, setWorkbook] = useState<Workbook | null>(null);
-    const [isLoading, setIsLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        if (typeof shareId === 'string') {
-            const fetchWorkbook = async () => {
-                try {
-                    setIsLoading(true);
-                    const fetchedWorkbook = await getSharedWorkbook(shareId);
-                    if (fetchedWorkbook) {
-                        setWorkbook(fetchedWorkbook);
-                    } else {
-                        setError("This share link is invalid or has expired.");
-                    }
-                } catch (e) {
-                    setError("Failed to fetch shared workbook.");
-                    console.error(e);
-                } finally {
-                    setIsLoading(false);
-                }
-            };
-            fetchWorkbook();
-        }
-    }, [shareId]);
-
-    const handleImport = () => {
-        if (workbook) {
-            const existing = workbooks.find(w => w.id === workbook.id);
-            if (existing) {
-                 mergeImportedWorkbook(workbook);
-            } else {
-                importSharedWorkbook(workbook);
-            }
+        // Redirect users to the main page after a short delay
+        const timer = setTimeout(() => {
             router.push('/');
-        }
-    };
-    
-    const handleCancel = () => {
-        router.push('/');
-    };
+        }, 5000);
 
-    if (isLoading) {
-        return (
-            <div className="flex items-center justify-center h-screen">
-                <Loader2 className="h-12 w-12 animate-spin text-accent" />
-            </div>
-        );
-    }
-    
-    if (error) {
-         return (
-            <div className="flex flex-col items-center justify-center h-screen p-4">
-               <Card className="w-full max-w-md">
-                   <CardHeader>
-                       <CardTitle>Import Failed</CardTitle>
-                   </CardHeader>
-                   <CardContent>
-                       <p className="text-destructive">{error}</p>
-                   </CardContent>
-                   <CardFooter>
-                       <Button onClick={() => router.push('/')} className="w-full">Go to App</Button>
-                   </CardFooter>
-               </Card>
-            </div>
-        );
-    }
-
-    if (!workbook) {
-        return null;
-    }
-
-    const existingWorkbook = workbooks.find(w => w.id === workbook.id);
+        return () => clearTimeout(timer);
+    }, [router]);
 
     return (
         <div className="flex flex-col items-center justify-center h-screen p-4 bg-background">
-            <Card className="w-full max-w-md">
-                <CardHeader className="text-center">
-                    <div className="mx-auto bg-accent/20 text-accent rounded-full h-16 w-16 flex items-center justify-center mb-4">
-                        <Share2 className="h-8 w-8" />
+            <Card className="w-full max-w-md text-center">
+                <CardHeader>
+                     <div className="mx-auto bg-destructive/20 text-destructive rounded-full h-16 w-16 flex items-center justify-center mb-4">
+                        <AlertTriangle className="h-8 w-8" />
                     </div>
-                    <CardTitle className="text-2xl font-headline">Import Workbook</CardTitle>
-                    <CardDescription>You've received a workbook from a friend.</CardDescription>
+                    <CardTitle>Sharing Method Updated</CardTitle>
+                    <CardDescription>
+                        This sharing link is from a previous version of the app.
+                    </CardDescription>
                 </CardHeader>
-                <CardContent className="text-center space-y-4">
-                    <p className="text-xl font-semibold">{workbook.name}</p>
-                    <p className="text-muted-foreground">{workbook.setlists.length} setlist(s)</p>
-                    {existingWorkbook && (
-                        <div className="flex items-center justify-center gap-2 text-sm text-green-500 bg-green-500/10 p-2 rounded-md">
-                           <ShieldCheck className="h-4 w-4" />
-                           <span>This workbook already exists. New setlists will be merged.</span>
-                        </div>
-                    )}
+                <CardContent>
+                    <p>
+                        The app now uses a copy-and-paste text method for sharing. Please ask your friend to generate a new share code from their app.
+                    </p>
+                    <p className="text-muted-foreground mt-4 text-sm">
+                        You will be redirected to the homepage shortly.
+                    </p>
                 </CardContent>
-                <CardFooter className="flex flex-col sm:flex-row gap-2">
-                    <Button variant="outline" onClick={handleCancel} className="w-full">Cancel</Button>
-                    <Button onClick={handleImport} className="w-full">
-                        {existingWorkbook ? (
-                            <>
-                                <Merge className="mr-2 h-4 w-4"/>
-                                Merge & Update
-                            </>
-                        ) : 'Import Now'}
-                    </Button>
-                </CardFooter>
             </Card>
         </div>
     );
-}
-
-
-export default function SharePage() {
-    return (
-        <AppProvider>
-            <SharePageContent />
-        </AppProvider>
-    )
 }
