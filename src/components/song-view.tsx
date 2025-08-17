@@ -10,7 +10,6 @@ import { ArrowLeft, Minus, Plus, Play, Pause } from 'lucide-react';
 import { SongEditor } from './song-editor';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Slider } from '@/components/ui/slider';
 
 interface SongViewProps {
   song: Song;
@@ -66,7 +65,7 @@ const renderLyrics = (text: string) => {
 export function SongView({ song, workbookId, setlistId, onBack }: SongViewProps) {
   const { updateSong } = useAppContext();
   const [isScrolling, setIsScrolling] = useState(false);
-  const [scrollSpeed, setScrollSpeed] = useState(song.scrollSpeed || 20);
+  const [scrollSpeed, setScrollSpeed] = useState(song.scrollSpeed || 10);
   const scrollRef = useRef<number | null>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const scrollAccumulatorRef = useRef(0);
@@ -74,9 +73,8 @@ export function SongView({ song, workbookId, setlistId, onBack }: SongViewProps)
   const scrollStep = useCallback(() => {
     if (!viewportRef.current || !isScrolling) return;
 
-    const maxIncrement = 5; // Corresponds to the fastest speed
-    const minIncrement = 0.1; // Corresponds to the slowest speed
-    const increment = minIncrement + (scrollSpeed / 100) * (maxIncrement - minIncrement);
+    // A much smaller increment for a slower scroll
+    const increment = scrollSpeed * 0.005;
 
     scrollAccumulatorRef.current += increment;
 
@@ -122,10 +120,10 @@ export function SongView({ song, workbookId, setlistId, onBack }: SongViewProps)
     updateSong(workbookId, setlistId, song.id, { transpose: song.transpose + amount });
   };
 
-  const handleScrollSpeedChange = (newSpeed: number[]) => {
-    const speedValue = newSpeed[0];
-    setScrollSpeed(speedValue);
-    updateSong(workbookId, setlistId, song.id, { scrollSpeed: speedValue });
+  const handleScrollSpeedChange = (amount: number) => {
+    const newSpeed = Math.max(1, scrollSpeed + amount); // Ensure speed doesn't go below 1
+    setScrollSpeed(newSpeed);
+    updateSong(workbookId, setlistId, song.id, { scrollSpeed: newSpeed });
   };
 
   const transposedLyrics = song ? transpose(song.lyricsWithChords, song.transpose) : "";
@@ -175,17 +173,11 @@ export function SongView({ song, workbookId, setlistId, onBack }: SongViewProps)
                     </Button>
                 </div>
 
-                <div className="flex items-center gap-2 justify-end">
+                <div className="flex items-center justify-end gap-1">
                     <h3 className="text-xs font-semibold hidden md:block">Speed</h3>
-                    <Slider
-                        defaultValue={[scrollSpeed]}
-                        min={1}
-                        max={100}
-                        step={1}
-                        onValueChange={handleScrollSpeedChange}
-                        className="w-[200px] md:w-[340px]"
-                    />
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleScrollSpeedChange(-1)}><Minus/></Button>
                     <span className="font-bold text-base w-10 text-center">{scrollSpeed}</span>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleScrollSpeedChange(1)}><Plus/></Button>
                 </div>
             </div>
         </footer>
