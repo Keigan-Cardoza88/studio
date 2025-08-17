@@ -23,8 +23,7 @@ interface AppContextType {
   updateSetlist: (workbookId: string, setlistId: string, updatedSetlist: Partial<Setlist>) => void;
   deleteSetlist: (workbookId: string, setlistId: string) => void;
   mergeSetlists: (workbookId: string, setlistIds: string[], newName: string) => void;
-  importSharedWorkbook: (sharedWorkbook: Workbook) => void;
-  mergeImportedWorkbook: (importedWorkbook: Workbook) => void;
+  importSetlistsToWorkbook: (sourceWorkbook: Workbook, destinationWorkbookId: string) => void;
   
   activeSetlist: Setlist | null;
   setActiveSetlistId: (id: string | null) => void;
@@ -299,55 +298,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (activeSongId === songId) setActiveSongId(null);
   };
   
-  const importSharedWorkbook = (sharedWorkbook: Workbook) => {
+  const importSetlistsToWorkbook = (sourceWorkbook: Workbook, destinationWorkbookId: string) => {
     setWorkbooks(prev => {
-        const existingWorkbook = prev.find(w => w.id === sharedWorkbook.id);
-        if (existingWorkbook) {
-            // This case should be handled by mergeImportedWorkbook, but as a fallback, do nothing.
-            return prev;
-        }
-        toast({
-            title: "Workbook Imported",
-            description: `Successfully imported "${sharedWorkbook.name}".`,
+        return prev.map(wb => {
+            if (wb.id === destinationWorkbookId) {
+                const existingSetlistIds = new Set(wb.setlists.map(s => s.id));
+                const newSetlists = sourceWorkbook.setlists.filter(
+                    importedSetlist => !existingSetlistIds.has(importedSetlist.id)
+                );
+
+                if (newSetlists.length > 0) {
+                    toast({
+                        title: "Import Successful",
+                        description: `Added ${newSetlists.length} new setlist(s) to "${wb.name}".`
+                    });
+                } else {
+                    toast({
+                        title: "No New Setlists",
+                        description: `"${wb.name}" already contains all setlists from the import.`,
+                    });
+                }
+
+                return {
+                    ...wb,
+                    setlists: [...wb.setlists, ...newSetlists]
+                };
+            }
+            return wb;
         });
-        return [...prev, sharedWorkbook];
     });
-    handleSetActiveWorkbookId(sharedWorkbook.id);
-  };
+    handleSetActiveWorkbookId(destinationWorkbookId);
+};
 
-  const mergeImportedWorkbook = (importedWorkbook: Workbook) => {
-    setWorkbooks(prev => {
-      return prev.map(existingWorkbook => {
-        if (existingWorkbook.id === importedWorkbook.id) {
-          // It's a match. Let's merge.
-          const existingSetlistIds = new Set(existingWorkbook.setlists.map(s => s.id));
-          const newSetlists = importedWorkbook.setlists.filter(
-            importedSetlist => !existingSetlistIds.has(importedSetlist.id)
-          );
-
-          if (newSetlists.length > 0) {
-            toast({
-              title: "Workbook Updated",
-              description: `Merged ${newSetlists.length} new setlist(s) into "${existingWorkbook.name}".`
-            });
-          } else {
-            toast({
-              title: "Workbook Already Up-to-Date",
-              description: `"${existingWorkbook.name}" contains all setlists from the import.`,
-            });
-          }
-
-          return {
-            ...existingWorkbook,
-            name: importedWorkbook.name, // Also update the name
-            setlists: [...existingWorkbook.setlists, ...newSetlists]
-          };
-        }
-        return existingWorkbook;
-      });
-    });
-    handleSetActiveWorkbookId(importedWorkbook.id);
-  };
 
   const reorderSongs = (workbookId: string, setlistId: string, songs: Song[]) => {
     setWorkbooks(prev => prev.map(w => {
@@ -483,7 +465,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const value = {
     workbooks, addWorkbook, deleteWorkbook, updateWorkbook, moveSetlistToWorkbook,
     activeWorkbook, setActiveWorkbookId: handleSetActiveWorkbookId, activeWorkbookId,
-    addSetlist, updateSetlist, deleteSetlist, mergeSetlists, importSharedWorkbook, mergeImportedWorkbook,
+    addSetlist, updateSetlist, deleteSetlist, mergeSetlists, importSetlistsToWorkbook,
     activeSetlist, setActiveSetlistId, activeSetlistId,
     addSong, updateSong, deleteSong,
     activeSong, setActiveSongId, activeSongId,

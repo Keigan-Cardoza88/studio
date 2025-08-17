@@ -10,7 +10,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Share, Clipboard, ClipboardCheck, FilePenLine, Merge, Loader2, FileInput } from 'lucide-react';
 import { useForm, SubmitHandler } from "react-hook-form";
@@ -34,12 +34,14 @@ type ImportInputs = {
 };
 
 function ImportDialog() {
-  const { importSharedWorkbook, mergeImportedWorkbook, workbooks } = useAppContext();
+  const { workbooks, importSetlistsToWorkbook } = useAppContext();
   const [isOpen, setIsOpen] = React.useState(false);
+  const [decodedWorkbook, setDecodedWorkbook] = React.useState<Workbook | null>(null);
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<ImportInputs>();
   const { toast } = useToast();
 
-  const onSubmit: SubmitHandler<ImportInputs> = (formData) => {
+  const handleDecode: SubmitHandler<ImportInputs> = (formData) => {
     const importedWorkbook = decodeWorkbook(formData.data);
     if (!importedWorkbook) {
         toast({
@@ -49,19 +51,27 @@ function ImportDialog() {
         });
         return;
     }
-
-    const existing = workbooks.find(w => w.id === importedWorkbook.id);
-    if (existing) {
-        mergeImportedWorkbook(importedWorkbook);
-    } else {
-        importSharedWorkbook(importedWorkbook);
-    }
-    reset();
-    setIsOpen(false);
+    setDecodedWorkbook(importedWorkbook);
   };
 
+  const handleImportConfirm = (destinationWorkbookId: string) => {
+      if (!decodedWorkbook) return;
+      importSetlistsToWorkbook(decodedWorkbook, destinationWorkbookId);
+      handleClose();
+  }
+
+  const handleClose = () => {
+      setIsOpen(false);
+      setDecodedWorkbook(null);
+      reset();
+  }
+
+
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
+    <Dialog open={isOpen} onOpenChange={(open) => {
+        if (!open) handleClose();
+        else setIsOpen(true);
+    }}>
       <DialogTrigger asChild>
         <Button variant="ghost" className="w-full justify-start">
           <FileInput className="mr-2 h-4 w-4" />
@@ -69,28 +79,59 @@ function ImportDialog() {
         </Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Import Workbook from Text</DialogTitle>
-          <DialogDescription>
-            Paste the text code you received to import the workbook.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={handleSubmit(onSubmit)}>
-          <div className="py-4">
-             <Textarea 
-                {...register("data", { required: "A text code is required." })} 
-                placeholder="Paste the code here..." 
-                className="my-4 h-32 font-mono text-xs" 
-             />
-             {errors.data && <p className="text-sm text-destructive">{errors.data.message}</p>}
-          </div>
-          <DialogFooter>
-            <DialogClose asChild>
-              <Button type="button" variant="secondary">Cancel</Button>
-            </DialogClose>
-            <Button type="submit">Import</Button>
-          </DialogFooter>
-        </form>
+        {decodedWorkbook ? (
+             <div>
+                <DialogHeader>
+                    <DialogTitle>Select Destination</DialogTitle>
+                    <DialogDescription>
+                        Choose a workbook to add the setlists from "{decodedWorkbook.name}".
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                            <Button variant="outline" className="w-full justify-between">
+                                Select a workbook... <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-[--radix-dropdown-menu-trigger-width)]">
+                            <DropdownMenuLabel>Your Workbooks</DropdownMenuLabel>
+                            {workbooks.map(wb => (
+                                <DropdownMenuItem key={wb.id} onSelect={() => handleImportConfirm(wb.id)}>
+                                    {wb.name}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+                </div>
+                 <DialogFooter>
+                    <Button type="button" variant="secondary" onClick={handleClose}>Cancel</Button>
+                </DialogFooter>
+            </div>
+        ) : (
+            <form onSubmit={handleSubmit(handleDecode)}>
+                <DialogHeader>
+                    <DialogTitle>Import from Text</DialogTitle>
+                    <DialogDescription>
+                        Paste the text code you received to import setlists.
+                    </DialogDescription>
+                </DialogHeader>
+                <div className="py-4">
+                    <Textarea 
+                        {...register("data", { required: "A text code is required." })} 
+                        placeholder="Paste the code here..." 
+                        className="my-4 h-32 font-mono text-xs" 
+                    />
+                    {errors.data && <p className="text-sm text-destructive">{errors.data.message}</p>}
+                </div>
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="secondary">Cancel</Button>
+                    </DialogClose>
+                    <Button type="submit">Decode</Button>
+                </DialogFooter>
+            </form>
+        )}
       </DialogContent>
     </Dialog>
   )
