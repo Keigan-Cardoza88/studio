@@ -256,7 +256,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const addSong = (workbookId: string, setlistId: string, songData: Omit<Song, 'id' | 'transpose' | 'scrollSpeed'>) => {
-    const newSong: Song = { ...songData, id: Date.now().toString(), transpose: 0, scrollSpeed: 20 };
+    const newSong: Song = { ...songData, id: Date.now().toString(), transpose: 0, scrollSpeed: 10 };
     setWorkbooks(prev => prev.map(w => {
       if (w.id === workbookId) {
         const setlists = w.setlists.map(s => {
@@ -303,6 +303,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setWorkbooks(prev => {
         const existingWorkbook = prev.find(w => w.id === sharedWorkbook.id);
         if (existingWorkbook) {
+            // This case should be handled by mergeImportedWorkbook, but as a fallback, do nothing.
             return prev;
         }
         toast({
@@ -332,8 +333,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           } else {
             toast({
               title: "Workbook Already Up-to-Date",
-              description: `"${existingWorkbook.name}" already contains all the setlists from the share link.`,
-              variant: "default"
+              description: `"${existingWorkbook.name}" contains all setlists from the import.`,
             });
           }
 
