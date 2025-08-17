@@ -12,13 +12,13 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogTrigger, DialogClose } from '@/components/ui/dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuTrigger, DropdownMenuSeparator } from "@/components/ui/dropdown-menu";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Share, Clipboard, ClipboardCheck, FilePenLine, Merge, Loader2, FileInput } from 'lucide-react';
+import { Book, ChevronsUpDown, FolderPlus, MoreVertical, Music, PlusCircle, Trash2, Share, Clipboard, ClipboardCheck, FilePenLine, Merge, Loader2, FileInput, Download } from 'lucide-react';
 import { useForm, SubmitHandler } from "react-hook-form";
 import type { Workbook, Setlist } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useLongPress } from '@/hooks/use-long-press';
 import { cn } from '@/lib/utils';
-import { encodeWorkbook, decodeWorkbook } from '@/lib/share';
+import { encodeWorkbook, decodeWorkbook, readFileAsText } from '@/lib/share';
 
 
 type Inputs = {
@@ -29,29 +29,40 @@ type MergeInputs = {
   name: string;
 }
 
-type ImportInputs = {
-  data: string;
-};
-
 function ImportDialog() {
   const { workbooks, importSetlistsToWorkbook } = useAppContext();
   const [isOpen, setIsOpen] = React.useState(false);
   const [decodedWorkbook, setDecodedWorkbook] = React.useState<Workbook | null>(null);
-
-  const { register, handleSubmit, reset, formState: { errors } } = useForm<ImportInputs>();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleDecode: SubmitHandler<ImportInputs> = (formData) => {
-    const importedWorkbook = decodeWorkbook(formData.data);
-    if (!importedWorkbook) {
+  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    try {
+      const fileContent = await readFileAsText(file);
+      const importedWorkbook = decodeWorkbook(fileContent);
+      if (!importedWorkbook) {
         toast({
             title: "Import Failed",
-            description: "The provided text is not a valid workbook. Please check and try again.",
+            description: "The provided file is not a valid workbook. Please check and try again.",
             variant: "destructive"
         });
         return;
+      }
+      setDecodedWorkbook(importedWorkbook);
+      setIsOpen(true);
+    } catch (error) {
+        toast({
+            title: "Error Reading File",
+            description: "Could not read the selected file.",
+            variant: "destructive"
+        });
+    } finally {
+        // Reset file input to allow selecting the same file again
+        if(fileInputRef.current) fileInputRef.current.value = "";
     }
-    setDecodedWorkbook(importedWorkbook);
   };
 
   const handleImportConfirm = (destinationWorkbookId: string) => {
@@ -63,23 +74,25 @@ function ImportDialog() {
   const handleClose = () => {
       setIsOpen(false);
       setDecodedWorkbook(null);
-      reset();
   }
 
-
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => {
-        if (!open) handleClose();
-        else setIsOpen(true);
-    }}>
-      <DialogTrigger asChild>
-        <Button variant="ghost" className="w-full justify-start">
-          <FileInput className="mr-2 h-4 w-4" />
-          Import from Text
-        </Button>
-      </DialogTrigger>
-      <DialogContent>
-        {decodedWorkbook ? (
+    <>
+      <input 
+        type="file" 
+        ref={fileInputRef} 
+        onChange={handleFileChange}
+        accept=".txt"
+        className="hidden"
+      />
+      <Button variant="ghost" className="w-full justify-start" onClick={() => fileInputRef.current?.click()}>
+        <FileInput className="mr-2 h-4 w-4" />
+        Import from File
+      </Button>
+
+      <Dialog open={!!decodedWorkbook && isOpen} onOpenChange={(open) => { if (!open) handleClose(); }}>
+        <DialogContent>
+          {decodedWorkbook && (
              <div>
                 <DialogHeader>
                     <DialogTitle>Select Destination</DialogTitle>
@@ -108,32 +121,10 @@ function ImportDialog() {
                     <Button type="button" variant="secondary" onClick={handleClose}>Cancel</Button>
                 </DialogFooter>
             </div>
-        ) : (
-            <form onSubmit={handleSubmit(handleDecode)}>
-                <DialogHeader>
-                    <DialogTitle>Import from Text</DialogTitle>
-                    <DialogDescription>
-                        Paste the text code you received to import setlists.
-                    </DialogDescription>
-                </DialogHeader>
-                <div className="py-4">
-                    <Textarea 
-                        {...register("data", { required: "A text code is required." })} 
-                        placeholder="Paste the code here..." 
-                        className="my-4 h-32 font-mono text-xs" 
-                    />
-                    {errors.data && <p className="text-sm text-destructive">{errors.data.message}</p>}
-                </div>
-                <DialogFooter>
-                    <DialogClose asChild>
-                        <Button type="button" variant="secondary">Cancel</Button>
-                    </DialogClose>
-                    <Button type="submit">Decode</Button>
-                </DialogFooter>
-            </form>
-        )}
-      </DialogContent>
-    </Dialog>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   )
 }
 
@@ -218,7 +209,6 @@ export function SetlistSidebar() {
   const [editingWorkbookName, setEditingWorkbookName] = React.useState("");
   const [editingSetlistId, setEditingSetlistId] = React.useState<string | null>(null);
   const [editingSetlistName, setEditingSetlistName] = React.useState("");
-  const [hasCopied, setHasCopied] = React.useState(false);
   const [shareCode, setShareCode] = React.useState('');
   const [isGenerating, setIsGenerating] = React.useState(false);
 
@@ -296,7 +286,6 @@ export function SetlistSidebar() {
     setIsGenerating(true);
     setShareCode('');
     
-    // Encoding can be quick, but we use a timeout to give feedback to the user
     setTimeout(() => {
         try {
           const code = encodeWorkbook(activeWorkbook);
@@ -308,7 +297,7 @@ export function SetlistSidebar() {
         } finally {
             setIsGenerating(false);
         }
-    }, 250); // Small delay
+    }, 250); 
   }, [activeWorkbook, toast]);
 
   React.useEffect(() => {
@@ -317,16 +306,22 @@ export function SetlistSidebar() {
     }
   }, [isShareOpen, generateShareCode]);
 
-  const handleCopyToClipboard = () => {
-    if(!shareCode) return;
-    navigator.clipboard.writeText(shareCode).then(() => {
-        setHasCopied(true);
-        toast({ title: "Copied to clipboard!" });
-        setTimeout(() => setHasCopied(false), 2000);
-    }, () => {
-        toast({ title: "Failed to copy", variant: "destructive" });
-    });
-  }
+  const handleDownloadFile = () => {
+    if (!shareCode || !activeWorkbook) return;
+    const blob = new Blob([shareCode], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    // Sanitize workbook name for filename
+    const fileName = `${activeWorkbook.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_workbook.txt`;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+    toast({ title: "Download Started", description: `Saved as ${fileName}`});
+  };
+
 
   const handleMoveSetlist = (setlistId: string, fromWorkbookId: string, toWorkbookId: string) => {
     if (fromWorkbookId === toWorkbookId) return;
@@ -589,28 +584,23 @@ export function SetlistSidebar() {
                     <DialogHeader>
                         <DialogTitle>Share "{activeWorkbook?.name}"</DialogTitle>
                         <DialogDescription>
-                            Copy the code below and send it to your friends. They can use it to import the workbook.
+                            Download a file containing this workbook's data. You can share this file with others.
                         </DialogDescription>
                     </DialogHeader>
-                    <div className="relative py-4">
+                    <div className="relative py-4 flex items-center justify-center">
                       {isGenerating ? (
                         <div className="flex items-center justify-center h-24">
                           <Loader2 className="h-8 w-8 animate-spin text-accent" />
                         </div>
                       ) : (
-                        <Textarea 
-                          readOnly 
-                          value={shareCode} 
-                          className="font-mono h-32 text-xs"
-                         />
+                        <Button onClick={handleDownloadFile} disabled={isGenerating || !shareCode} size="lg">
+                            <Download className="mr-2 h-5 w-5" />
+                            Download Workbook File
+                        </Button>
                       )}
                     </div>
                     <DialogFooter>
                       <DialogClose asChild><Button type="button" variant="secondary">Done</Button></DialogClose>
-                      <Button onClick={handleCopyToClipboard} disabled={isGenerating || !shareCode}>
-                        {hasCopied ? <ClipboardCheck className="mr-2 h-4 w-4" /> : <Clipboard className="mr-2 h-4 w-4" />}
-                        {hasCopied ? "Copied!" : "Copy Code"}
-                      </Button>
                     </DialogFooter>
                   </DialogContent>
                 </Dialog>
@@ -620,3 +610,4 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
+
