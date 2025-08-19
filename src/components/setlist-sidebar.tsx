@@ -50,7 +50,8 @@ function ImportDialog() {
             return;
           }
           
-          const fileContent = typeof file.data === 'string' ? file.data : new TextDecoder().decode(new Uint8Array(file.data.buffer));
+          // The data comes back as a base64 encoded string.
+          const fileContent = atob(file.data as string);
 
           const importedWorkbook = decodeWorkbook(fileContent);
            if (!importedWorkbook) {
@@ -621,3 +622,5 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
+
+    
