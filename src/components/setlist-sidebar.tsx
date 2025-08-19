@@ -57,7 +57,15 @@ function ImportDialog() {
                  toast({ title: "Import Failed", description: "File is empty or could not be read.", variant: "destructive" });
                  return;
             }
-            const importedWorkbook = decodeWorkbook(fileContent);
+             // The content is a Data URL: "data:text/plain;base64,SGVsbG8gV29ybGQ="
+            // We need to extract the Base64 part.
+            const base64Data = fileContent.split(',')[1];
+            if (!base64Data) {
+                toast({ title: "Import Failed", description: "Invalid file format. Could not find Base64 data.", variant: "destructive" });
+                return;
+            }
+
+            const importedWorkbook = decodeWorkbook(base64Data);
             if (!importedWorkbook) {
                 toast({ title: "Import Failed", description: "Invalid workbook file. The format is incorrect.", variant: "destructive" });
                 return;
@@ -68,7 +76,8 @@ function ImportDialog() {
         reader.onerror = () => {
              toast({ title: "Error Reading File", description: "An error occurred while reading the file.", variant: "destructive" });
         }
-        reader.readAsText(file);
+        // Read the file as a Data URL to get a Base64 encoded string
+        reader.readAsDataURL(file);
       };
       input.click();
     } catch (error) {
@@ -610,12 +619,5 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
-
-    
-
-    
-
-    
-
 
     
