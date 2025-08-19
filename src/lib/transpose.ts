@@ -50,8 +50,26 @@ const lineRegex = /(\[.*?\])/g;
 function isChordLine(line: string): boolean {
     const trimmed = line.trim();
     if (trimmed === '') return false;
+    // A line is a chord line if it contains chords in brackets and no other text,
+    // or if it contains what look like chords without brackets and no other text.
+    
+    // This removes bracketed chords and extra whitespace to see if any lyrics remain.
+    const lyricsOnly = trimmed.replace(/\[[^\]]+\]/g, '').trim();
+    if (lyricsOnly.length > 0) {
+        // There are non-chord lyrics on this line. Is it *just* chords otherwise?
+        const parts = trimmed.split(/\s+/).filter(p => !p.startsWith('['));
+        return parts.every(part => standaloneChordRegex.test(part));
+    }
+    
+    // This handles lines with only bracketed chords, or only un-bracketed chords
     const parts = trimmed.split(/\s+/);
-    return parts.every(part => standaloneChordRegex.test(part));
+    return parts.every(part => {
+        if (part.startsWith('[') && part.endsWith(']')) {
+            const content = part.slice(1, -1);
+            return standaloneChordRegex.test(content);
+        }
+        return standaloneChordRegex.test(part);
+    });
 }
 
 
@@ -59,24 +77,25 @@ export function transpose(text: string, semitones: number): string {
     if (semitones === 0) return text;
 
     return text.split("\n").map(line => {
-        // Exclude common labels
         const isNonMusicalLabel = /^\s*(chorus|verse|intro|outro|bridge|pre-chorus|interlude|solo|instrumental|capo|key|t(uning)?)\s*[:]?\s*$/i.test(line);
         if (isNonMusicalLabel) {
             return line;
         }
 
-        // If the entire line is just chords, transpose every "word"
+        // A line is considered a "chord line" if it only contains recognizable chord patterns and whitespace.
+        // We will only transpose chords on such lines.
+        const chordLineRegex = /^\s*([A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)*(?:\/[A-G](?:#|b)?)?\*?\s*)+$/;
+        
+        // This is a simplified check for a line containing only chords.
         if (isChordLine(line)) {
-            return line.split(' ').map(word => transposeSingleChord(word, semitones)).join(' ');
+            // It's a chord line, so we transpose each "word" on it.
+             return line.split(/(\s+)/).map(part => {
+                if (part.trim() === '') return part; // Keep whitespace
+                return transposeSingleChord(part, semitones);
+            }).join('');
         }
         
-        // Otherwise, only transpose chords within brackets.
-        return line.replace(lineRegex, (match) => {
-            if (match.startsWith('[') && match.endsWith(']')) {
-                const content = match.slice(1, -1);
-                return `[${transposeSingleChord(content, semitones)}]`;
-            }
-            return match; // Should not be reached with the current regex, but good for safety
-        });
+        // If it's not a pure chord line, we return it as is, without transposing anything.
+        return line;
     }).join("\n");
 }
