@@ -39,49 +39,38 @@ function ImportDialog() {
 
   const handleFilePick = async () => {
     try {
-      if (Capacitor.isNativePlatform()) {
-          const result = await Filesystem.pickFiles({
-            readData: true,
-          });
-          const file = result.files[0];
-          if (!file || !file.data) {
-            toast({ title: "No file selected", variant: "destructive"});
-            return;
-          }
-          
-          // The data comes back as a base64 encoded string.
-          const fileContent = atob(file.data as string);
-
-          const importedWorkbook = decodeWorkbook(fileContent);
-           if (!importedWorkbook) {
-              toast({ title: "Import Failed", description: "Invalid workbook file.", variant: "destructive" });
-              return;
-          }
-          setDecodedWorkbook(importedWorkbook);
-          setIsOpen(true);
-      } else {
-        // Fallback for web
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = '.txt';
-        input.onchange = async (e) => {
-          const file = (e.target as HTMLInputElement).files?.[0];
-          if (!file) return;
-          const reader = new FileReader();
-          reader.onload = (event) => {
-              const fileContent = event.target?.result as string;
-              const importedWorkbook = decodeWorkbook(fileContent);
-              if (!importedWorkbook) {
-                  toast({ title: "Import Failed", description: "Invalid workbook file.", variant: "destructive" });
-                  return;
-              }
-              setDecodedWorkbook(importedWorkbook);
-              setIsOpen(true);
-          };
-          reader.readAsText(file);
+      const input = document.createElement('input');
+      input.type = 'file';
+      input.accept = '.txt,text/plain'; // Accept .txt and plain text files
+      input.onchange = async (e) => {
+        const target = e.target as HTMLInputElement;
+        const file = target.files?.[0];
+        if (!file) {
+          toast({ title: "No file selected", variant: "destructive"});
+          return;
+        }
+        
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const fileContent = event.target?.result as string;
+            if (!fileContent) {
+                 toast({ title: "Import Failed", description: "File is empty or could not be read.", variant: "destructive" });
+                 return;
+            }
+            const importedWorkbook = decodeWorkbook(fileContent);
+            if (!importedWorkbook) {
+                toast({ title: "Import Failed", description: "Invalid workbook file. The format is incorrect.", variant: "destructive" });
+                return;
+            }
+            setDecodedWorkbook(importedWorkbook);
+            setIsOpen(true);
         };
-        input.click();
-      }
+        reader.onerror = () => {
+             toast({ title: "Error Reading File", description: "An error occurred while reading the file.", variant: "destructive" });
+        }
+        reader.readAsText(file);
+      };
+      input.click();
     } catch (error) {
         console.error("File pick error:", error);
         toast({ title: "Error Picking File", description: "Could not read the selected file.", variant: "destructive" });
@@ -625,5 +614,8 @@ export function SetlistSidebar() {
     
 
     
+
+    
+
 
     
