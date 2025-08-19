@@ -27,7 +27,10 @@ export function decodeWorkbook(encoded: string): Workbook | null {
             return workbook as Workbook;
         }
         return null;
-    } catch (e) {
+    } catch (e: any) {
+        if (e && e.message && e.message.includes("incorrect header check")) {
+             throw new Error("Invalid file format. This does not appear to be a ReadySetPlay workbook file.");
+        }
         console.error("Failed to decode workbook:", e);
         return null;
     }
