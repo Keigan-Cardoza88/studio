@@ -41,7 +41,6 @@ function ImportDialog() {
     try {
       if (Capacitor.isNativePlatform()) {
           const result = await Filesystem.pickFiles({
-            types: ['text/plain'],
             readData: true,
           });
           const file = result.files[0];
@@ -622,5 +621,7 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
+
+    
 
     
