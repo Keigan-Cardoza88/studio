@@ -43,8 +43,12 @@ function transposeSingleChord(chord: string, semitones: number): string {
 
 // This regex finds either bracketed content `[Anything]` or words that look like chords.
 // Group 1: ([\[].*?[\]]) - Captures anything inside square brackets.
-// Group 2: (\b[A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)*(?:\/[A-G](?:#|b)?)?\*?\b) - Captures standalone words that are chords.
-const lineRegex = /(\[.*?\])|(\b[A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)*(?:\/[A-G](?:#|b)?)?\*?\b)/g;
+// Group 2: ( ... ) - This captures the standalone chords.
+// It looks for a word boundary `\b`, then the chord structure, and then `(?![a-z])` which is a negative lookahead.
+// This `(?![a-z])` part is key: it asserts that the character immediately following the chord is NOT a lowercase letter.
+// This prevents it from matching "A" in "A plane", but allows "A" as a chord if it's followed by a space, newline, or another capital letter.
+const lineRegex = /(\[.*?\])|(\b[A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)*(?:\/[A-G](?:#|b)?)?\*?\b(?![a-z]))/g;
+
 
 export function transpose(text: string, semitones: number): string {
     if (semitones === 0) return text;
@@ -58,8 +62,9 @@ export function transpose(text: string, semitones: number): string {
 
         return line.replace(lineRegex, (match, bracketedChord, inlineChord) => {
             if (bracketedChord) {
-                // It's a bracketed chord or text, ignore it.
-                return bracketedChord;
+                // It's a bracketed chord, so we check inside it for chords to transpose
+                const content = bracketedChord.slice(1, -1);
+                return `[${transposeSingleChord(content, semitones)}]`;
             }
             if (inlineChord) {
                 // It's a standalone chord word in the text.
