@@ -5,6 +5,8 @@ import React, { createContext, useContext, useState, ReactNode, useEffect, useCa
 import type { Setlist, Song, Workbook } from '@/lib/types';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { useToast } from '@/hooks/use-toast';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem } from '@capacitor/filesystem';
 
 type ModalMode = 'move' | 'copy';
 
@@ -95,7 +97,30 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [actionSource, setActionSource] = useState<{ workbookId: string; setlistId: string } | null>(null);
 
   useEffect(() => {
-    const timer = setTimeout(() => {
+    const initApp = async () => {
+       if (Capacitor.isNativePlatform()) {
+        try {
+          const permissions = await Filesystem.checkPermissions();
+          if (permissions.publicStorage !== 'granted') {
+            const requested = await Filesystem.requestPermissions();
+            if (requested.publicStorage !== 'granted') {
+              toast({
+                title: "Permission Denied",
+                description: "File saving features will not work without storage permission.",
+                variant: "destructive"
+              });
+            }
+          }
+        } catch (e) {
+          console.error("Error requesting filesystem permissions", e);
+          toast({
+            title: "Permission Error",
+            description: "Could not request storage permissions.",
+            variant: "destructive"
+          });
+        }
+      }
+
       if (workbooks.length === 0) {
         setWorkbooks(defaultWorkbooks);
       }
@@ -103,7 +128,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         setActiveWorkbookId(workbooks[0]?.id || null);
       }
       setIsLoading(false);
-    }, 500);
+    }
+    
+    const timer = setTimeout(initApp, 500);
 
     return () => clearTimeout(timer);
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
