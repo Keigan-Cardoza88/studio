@@ -299,36 +299,33 @@ export function SetlistSidebar() {
   const generateAndDownloadFile = React.useCallback(async () => {
     if (!activeWorkbook) return;
 
+    if (!Capacitor.isNativePlatform()) {
+      toast({
+        title: "Feature Not Available",
+        description: "File saving is only available in the native mobile app.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsGenerating(true);
     
     try {
         const data = encodeWorkbook(activeWorkbook);
         const fileName = `${activeWorkbook.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_workbook.txt`;
 
-        if (Capacitor.isNativePlatform()) {
-             await Filesystem.writeFile({
-                path: fileName,
-                data: data,
-                directory: Directory.Documents,
-                encoding: Encoding.UTF8,
-            });
-            toast({ 
-                title: "File Saved", 
-                description: `${fileName} saved to Documents folder.`
-            });
-        } else {
-            // Web fallback
-            const blob = new Blob([data], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.download = fileName;
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            toast({ title: "Download Started", description: `Saved as ${fileName}`});
-        }
+        await Filesystem.writeFile({
+          path: `Download/${fileName}`,
+          data: data,
+          directory: Directory.ExternalStorage,
+          encoding: Encoding.UTF8,
+        });
+
+        toast({
+          title: "File Saved",
+          description: `Saved to Downloads folder as ${fileName}.`
+        });
+
     } catch (e) {
       console.error("Sharing failed with error:", e);
       let errorMessage = "Could not generate file. Please try again.";
