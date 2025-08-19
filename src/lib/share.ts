@@ -17,25 +17,23 @@ export function encodeWorkbook(workbook: Workbook): string {
     return toBase64(compressed);
 }
 
-export function decodeWorkbook(encoded: string): Workbook | null {
+export function decodeWorkbook(encoded: string): Workbook {
     try {
         const compressed = fromBase64(encoded);
         const jsonString = pako.inflate(compressed, { to: 'string' });
         const workbook = JSON.parse(jsonString);
+        
         // Basic validation
         if (workbook && workbook.id && workbook.name && Array.isArray(workbook.setlists)) {
             return workbook as Workbook;
+        } else {
+            // Throw a specific error for invalid structure
+            throw new Error("File content is not a valid workbook structure.");
         }
-        return null;
-    } catch (e: any) {
-         // The "incorrect header check" error from pako indicates a file that is not zlib-compressed.
-         // This is the expected error when a user selects a plain text file.
-        if (e && e.message && e.message.toLowerCase().includes("incorrect header check")) {
-             throw new Error("Invalid file format. This does not appear to be a ReadySetPlay workbook file.");
-        }
-        // Log other unexpected errors for debugging.
-        console.error("Failed to decode workbook:", e);
-        throw new Error("An unexpected error occurred while decoding the workbook.");
+    } catch (e) {
+        // Any error during the process (atob, pako, JSON.parse, validation)
+        // indicates an invalid file format. We throw a single, clear error.
+        throw new Error("Invalid file format. This does not appear to be a ReadySetPlay workbook file.");
     }
 }
 
