@@ -28,11 +28,14 @@ export function decodeWorkbook(encoded: string): Workbook | null {
         }
         return null;
     } catch (e: any) {
-        if (e && e.message && e.message.includes("incorrect header check")) {
+         // The "incorrect header check" error from pako indicates a file that is not zlib-compressed.
+         // This is the expected error when a user selects a plain text file.
+        if (e && e.message && e.message.toLowerCase().includes("incorrect header check")) {
              throw new Error("Invalid file format. This does not appear to be a ReadySetPlay workbook file.");
         }
+        // Log other unexpected errors for debugging.
         console.error("Failed to decode workbook:", e);
-        return null;
+        throw new Error("An unexpected error occurred while decoding the workbook.");
     }
 }
 

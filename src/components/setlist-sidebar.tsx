@@ -1,4 +1,5 @@
 
+
 "use client";
 
 import React from 'react';
@@ -41,7 +42,7 @@ function ImportDialog() {
     try {
       const input = document.createElement('input');
       input.type = 'file';
-      input.accept = '.txt,text/plain'; // Accept .txt and plain text files
+      input.accept = '.txt,text/plain';
       input.onchange = async (e) => {
         const target = e.target as HTMLInputElement;
         const file = target.files?.[0];
@@ -57,8 +58,7 @@ function ImportDialog() {
                  toast({ title: "Import Failed", description: "File is empty or could not be read.", variant: "destructive" });
                  return;
             }
-             // The content is a Data URL: "data:text/plain;base64,SGVsbG8gV29ybGQ="
-            // We need to extract the Base64 part.
+            
             const base64Data = fileContent.split(',')[1];
             if (!base64Data) {
                 toast({ title: "Import Failed", description: "Invalid file format. Could not find Base64 data.", variant: "destructive" });
@@ -79,7 +79,6 @@ function ImportDialog() {
         reader.onerror = () => {
              toast({ title: "Error Reading File", description: "An error occurred while reading the file.", variant: "destructive" });
         }
-        // Read the file as a Data URL to get a Base64 encoded string
         reader.readAsDataURL(file);
       };
       input.click();
