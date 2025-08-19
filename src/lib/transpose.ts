@@ -6,6 +6,8 @@
 // 3. ((?:\/[A-G](?:#|b)?)?): Captures an optional slash chord bass note (like /G#). This is Group 3.
 // 4. (\*?): Captures an optional trailing asterisk for single strums. This is Group 4.
 const chordRegex = /([A-G](?:#|b)?)((?:maj|min|m|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)*)((?:\/[A-G](?:#|b)?)?)(\*?)/g;
+const standaloneChordRegex = /^[A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)*(?:\/[A-G](?:#|b)?)?\*?$/;
+
 
 const NOTES_SHARP = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const NOTES_FLAT  = ["C", "Db", "D", "Eb", "E", "F", "Gb", "G", "Ab", "A", "Bb", "B"];
@@ -41,37 +43,40 @@ function transposeSingleChord(chord: string, semitones: number): string {
     });
 }
 
-// This regex finds either bracketed content `[Anything]` or words that look like chords.
+// This regex finds either bracketed content `[Anything]` or words that could be chords.
 // Group 1: ([\[].*?[\]]) - Captures anything inside square brackets.
-// Group 2: ( ... ) - This captures the standalone chords.
-// It looks for a word boundary `\b`, then the chord structure, and then `(?![a-z])` which is a negative lookahead.
-// This `(?![a-z])` part is key: it asserts that the character immediately following the chord is NOT a lowercase letter.
-// This prevents it from matching "A" in "A plane", but allows "A" as a chord if it's followed by a space, newline, or another capital letter.
-const lineRegex = /(\[.*?\])|(\b[A-G](?:#|b)?(?:maj|min|m|dim|aug|sus|add|m7|maj7|7|6|9|11|13|m\/maj7|m\/Maj7|sus2|sus4|add9)*(?:\/[A-G](?:#|b)?)?\*?\b(?![a-z]))/g;
+const lineRegex = /(\[.*?\])/g;
+
+function isChordLine(line: string): boolean {
+    const trimmed = line.trim();
+    if (trimmed === '') return false;
+    const parts = trimmed.split(/\s+/);
+    return parts.every(part => standaloneChordRegex.test(part));
+}
 
 
 export function transpose(text: string, semitones: number): string {
     if (semitones === 0) return text;
 
     return text.split("\n").map(line => {
-        // We exclude lines that are common labels and not musical instruction
+        // Exclude common labels
         const isNonMusicalLabel = /^\s*(chorus|verse|intro|outro|bridge|pre-chorus|interlude|solo|instrumental|capo|key|t(uning)?)\s*[:]?\s*$/i.test(line);
         if (isNonMusicalLabel) {
             return line;
         }
 
-        return line.replace(lineRegex, (match, bracketedChord, inlineChord) => {
-            if (bracketedChord) {
-                // It's a bracketed chord, so we check inside it for chords to transpose
-                const content = bracketedChord.slice(1, -1);
+        // If the entire line is just chords, transpose every "word"
+        if (isChordLine(line)) {
+            return line.split(' ').map(word => transposeSingleChord(word, semitones)).join(' ');
+        }
+        
+        // Otherwise, only transpose chords within brackets.
+        return line.replace(lineRegex, (match) => {
+            if (match.startsWith('[') && match.endsWith(']')) {
+                const content = match.slice(1, -1);
                 return `[${transposeSingleChord(content, semitones)}]`;
             }
-            if (inlineChord) {
-                // It's a standalone chord word in the text.
-                return transposeSingleChord(inlineChord, semitones);
-            }
-            // Should not happen, but as a fallback, return the original match.
-            return match;
+            return match; // Should not be reached with the current regex, but good for safety
         });
     }).join("\n");
 }
