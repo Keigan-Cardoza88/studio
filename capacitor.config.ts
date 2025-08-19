@@ -1,3 +1,4 @@
+
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
@@ -7,6 +8,11 @@ const config: CapacitorConfig = {
   server: {
     hostname: 'localhost',
     androidScheme: 'https'
+  },
+  plugins: {
+    Filesystem: {
+      webShowModal: true,
+    }
   }
 };
 

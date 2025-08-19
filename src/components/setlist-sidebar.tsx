@@ -18,7 +18,9 @@ import type { Workbook, Setlist } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { useLongPress } from '@/hooks/use-long-press';
 import { cn } from '@/lib/utils';
-import { encodeWorkbook, decodeWorkbook, readFileAsText } from '@/lib/share';
+import { encodeWorkbook, decodeWorkbook } from '@/lib/share';
+import { Capacitor } from '@capacitor/core';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 
 
 type Inputs = {
@@ -33,37 +35,59 @@ function ImportDialog() {
   const { workbooks, importSetlistsToWorkbook } = useAppContext();
   const [isOpen, setIsOpen] = React.useState(false);
   const [decodedWorkbook, setDecodedWorkbook] = React.useState<Workbook | null>(null);
-  const fileInputRef = React.useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const handleFilePick = async () => {
     try {
-      const fileContent = await readFileAsText(file);
-      const importedWorkbook = decodeWorkbook(fileContent);
-      if (!importedWorkbook) {
-        toast({
-            title: "Import Failed",
-            description: "The provided file is not a valid workbook. Please check and try again.",
-            variant: "destructive"
-        });
-        return;
+      if (Capacitor.isNativePlatform()) {
+          const result = await Filesystem.pickFiles({
+            types: ['text/plain'],
+            readData: true,
+          });
+          const file = result.files[0];
+          if (!file || !file.data) {
+            toast({ title: "No file selected", variant: "destructive"});
+            return;
+          }
+          
+          const fileContent = typeof file.data === 'string' ? file.data : new TextDecoder().decode(new Uint8Array(file.data.buffer));
+
+          const importedWorkbook = decodeWorkbook(fileContent);
+           if (!importedWorkbook) {
+              toast({ title: "Import Failed", description: "Invalid workbook file.", variant: "destructive" });
+              return;
+          }
+          setDecodedWorkbook(importedWorkbook);
+          setIsOpen(true);
+      } else {
+        // Fallback for web
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = '.txt';
+        input.onchange = async (e) => {
+          const file = (e.target as HTMLInputElement).files?.[0];
+          if (!file) return;
+          const reader = new FileReader();
+          reader.onload = (event) => {
+              const fileContent = event.target?.result as string;
+              const importedWorkbook = decodeWorkbook(fileContent);
+              if (!importedWorkbook) {
+                  toast({ title: "Import Failed", description: "Invalid workbook file.", variant: "destructive" });
+                  return;
+              }
+              setDecodedWorkbook(importedWorkbook);
+              setIsOpen(true);
+          };
+          reader.readAsText(file);
+        };
+        input.click();
       }
-      setDecodedWorkbook(importedWorkbook);
-      setIsOpen(true);
     } catch (error) {
-        toast({
-            title: "Error Reading File",
-            description: "Could not read the selected file.",
-            variant: "destructive"
-        });
-    } finally {
-        // Reset file input to allow selecting the same file again
-        if(fileInputRef.current) fileInputRef.current.value = "";
+        console.error("File pick error:", error);
+        toast({ title: "Error Picking File", description: "Could not read the selected file.", variant: "destructive" });
     }
   };
+
 
   const handleImportConfirm = (destinationWorkbookId: string) => {
       if (!decodedWorkbook) return;
@@ -78,14 +102,7 @@ function ImportDialog() {
 
   return (
     <>
-      <input 
-        type="file" 
-        ref={fileInputRef} 
-        onChange={handleFileChange}
-        accept=".txt"
-        className="hidden"
-      />
-      <Button variant="ghost" className="w-full justify-start" onClick={() => fileInputRef.current?.click()}>
+      <Button variant="ghost" className="w-full justify-start" onClick={handleFilePick}>
         <FileInput className="mr-2 h-4 w-4" />
         Import from File
       </Button>
@@ -209,7 +226,6 @@ export function SetlistSidebar() {
   const [editingWorkbookName, setEditingWorkbookName] = React.useState("");
   const [editingSetlistId, setEditingSetlistId] = React.useState<string | null>(null);
   const [editingSetlistName, setEditingSetlistName] = React.useState("");
-  const [shareCode, setShareCode] = React.useState('');
   const [isGenerating, setIsGenerating] = React.useState(false);
 
 
@@ -280,47 +296,51 @@ export function SetlistSidebar() {
     setIsShareOpen(true);
   }
 
-  const generateShareCode = React.useCallback(() => {
+  const generateAndDownloadFile = React.useCallback(async () => {
     if (!activeWorkbook) return;
 
     setIsGenerating(true);
-    setShareCode('');
     
-    setTimeout(() => {
-        try {
-          const code = encodeWorkbook(activeWorkbook);
-          setShareCode(code);
-        } catch (e) {
-          console.error("Sharing failed with error:", e);
-          toast({ title: "Sharing Failed", description: "Could not generate share code. Please try again.", variant: "destructive" });
-          setIsShareOpen(false); 
-        } finally {
-            setIsGenerating(false);
+    try {
+        const data = encodeWorkbook(activeWorkbook);
+        const fileName = `${activeWorkbook.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_workbook.txt`;
+
+        if (Capacitor.isNativePlatform()) {
+             await Filesystem.writeFile({
+                path: fileName,
+                data: data,
+                directory: Directory.Documents,
+                encoding: Encoding.UTF8,
+            });
+            toast({ 
+                title: "File Saved", 
+                description: `${fileName} saved to Documents folder.`
+            });
+        } else {
+            // Web fallback
+            const blob = new Blob([data], { type: 'text/plain;charset=utf-8' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+            toast({ title: "Download Started", description: `Saved as ${fileName}`});
         }
-    }, 250); 
-  }, [activeWorkbook, toast]);
-
-  React.useEffect(() => {
-    if (isShareOpen) {
-        generateShareCode();
+    } catch (e) {
+      console.error("Sharing failed with error:", e);
+      let errorMessage = "Could not generate file. Please try again.";
+      if (e instanceof Error && e.message) {
+          errorMessage = e.message;
+      }
+      toast({ title: "Sharing Failed", description: errorMessage, variant: "destructive" });
+    } finally {
+        setIsGenerating(false);
+        setIsShareOpen(false);
     }
-  }, [isShareOpen, generateShareCode]);
-
-  const handleDownloadFile = () => {
-    if (!shareCode || !activeWorkbook) return;
-    const blob = new Blob([shareCode], { type: 'text/plain;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    // Sanitize workbook name for filename
-    const fileName = `${activeWorkbook.name.replace(/[^a-z0-9]/gi, '_').toLowerCase()}_workbook.txt`;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast({ title: "Download Started", description: `Saved as ${fileName}`});
-  };
+  }, [activeWorkbook, toast]);
 
 
   const handleMoveSetlist = (setlistId: string, fromWorkbookId: string, toWorkbookId: string) => {
@@ -580,24 +600,18 @@ export function SetlistSidebar() {
                       Share Workbook
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-xl">
+                  <DialogContent className="sm:max-w-md">
                     <DialogHeader>
                         <DialogTitle>Share "{activeWorkbook?.name}"</DialogTitle>
                         <DialogDescription>
-                            Download a file containing this workbook's data. You can share this file with others.
+                            Save a file containing this workbook's data. You can share this file with others.
                         </DialogDescription>
                     </DialogHeader>
                     <div className="relative py-4 flex items-center justify-center">
-                      {isGenerating ? (
-                        <div className="flex items-center justify-center h-24">
-                          <Loader2 className="h-8 w-8 animate-spin text-accent" />
-                        </div>
-                      ) : (
-                        <Button onClick={handleDownloadFile} disabled={isGenerating || !shareCode} size="lg">
-                            <Download className="mr-2 h-5 w-5" />
-                            Download Workbook File
+                        <Button onClick={generateAndDownloadFile} disabled={isGenerating} size="lg">
+                            {isGenerating ? <Loader2 className="mr-2 h-5 w-5 animate-spin" /> : <Download className="mr-2 h-5 w-5" />}
+                            {isGenerating ? "Saving..." : "Save Workbook File"}
                         </Button>
-                      )}
                     </div>
                     <DialogFooter>
                       <DialogClose asChild><Button type="button" variant="secondary">Done</Button></DialogClose>
@@ -610,4 +624,3 @@ export function SetlistSidebar() {
     </Sidebar>
   );
 }
-
