@@ -37,54 +37,43 @@ function ImportDialog() {
   const [isOpen, setIsOpen] = React.useState(false);
   const [decodedWorkbook, setDecodedWorkbook] = React.useState<Workbook | null>(null);
   const { toast } = useToast();
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleFilePick = async () => {
-    try {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = '.txt,text/plain';
-      input.onchange = async (e) => {
-        const target = e.target as HTMLInputElement;
-        const file = target.files?.[0];
-        if (!file) {
-          toast({ title: "No file selected", variant: "destructive"});
-          return;
+  const handleFilePickClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelected = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      toast({ title: "No file selected", variant: "destructive"});
+      return;
+    }
+    
+    const reader = new FileReader();
+    reader.onload = (event) => {
+        const fileContent = event.target?.result as string;
+        if (!fileContent) {
+             toast({ title: "Import Failed", description: "File is empty or could not be read.", variant: "destructive" });
+             return;
         }
         
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const fileContent = event.target?.result as string;
-            if (!fileContent) {
-                 toast({ title: "Import Failed", description: "File is empty or could not be read.", variant: "destructive" });
-                 return;
-            }
-            
-            const base64Data = fileContent.split(',')[1];
-            if (!base64Data) {
-                toast({ title: "Import Failed", description: "Invalid file format. Could not find Base64 data.", variant: "destructive" });
-                return;
-            }
-            try {
-              const importedWorkbook = decodeWorkbook(base64Data);
-              if (!importedWorkbook) {
-                  toast({ title: "Import Failed", description: "Could not parse workbook data. The file might be corrupt.", variant: "destructive" });
-                  return;
-              }
-              setDecodedWorkbook(importedWorkbook);
-              setIsOpen(true);
-            } catch (error: any) {
-               toast({ title: "Import Failed", description: error.message || "An unknown error occurred during import.", variant: "destructive" });
-            }
-        };
-        reader.onerror = () => {
-             toast({ title: "Error Reading File", description: "An error occurred while reading the file.", variant: "destructive" });
+        try {
+          const importedWorkbook = decodeWorkbook(fileContent.trim());
+          setDecodedWorkbook(importedWorkbook);
+          setIsOpen(true);
+        } catch (error: any) {
+           toast({ title: "Import Failed", description: error.message || "An unknown error occurred during import.", variant: "destructive" });
         }
-        reader.readAsDataURL(file);
-      };
-      input.click();
-    } catch (error) {
-        console.error("File pick error:", error);
-        toast({ title: "Error Picking File", description: "Could not read the selected file.", variant: "destructive" });
+    };
+    reader.onerror = () => {
+         toast({ title: "Error Reading File", description: "An error occurred while reading the file.", variant: "destructive" });
+    }
+    reader.readAsText(file);
+
+    // Reset file input to allow selecting the same file again
+    if(e.target) {
+      e.target.value = '';
     }
   };
 
@@ -102,7 +91,14 @@ function ImportDialog() {
 
   return (
     <>
-      <Button variant="ghost" className="w-full justify-start" onClick={handleFilePick}>
+      <input
+        type="file"
+        ref={fileInputRef}
+        onChange={handleFileSelected}
+        accept=".txt,text/plain"
+        className="hidden"
+      />
+      <Button variant="ghost" className="w-full justify-start" onClick={handleFilePickClick}>
         <FileInput className="mr-2 h-4 w-4" />
         Import from File
       </Button>

@@ -23,8 +23,8 @@ export function decodeWorkbook(encoded: string): Workbook {
         const jsonString = pako.inflate(compressed, { to: 'string' });
         const workbook = JSON.parse(jsonString);
         
-        // Basic validation
-        if (workbook && workbook.id && workbook.name && Array.isArray(workbook.setlists)) {
+        // Basic validation to ensure it's a workbook-like object
+        if (workbook && typeof workbook.id === 'string' && typeof workbook.name === 'string' && Array.isArray(workbook.setlists)) {
             return workbook as Workbook;
         } else {
             // Throw a specific error for invalid structure
@@ -35,13 +35,4 @@ export function decodeWorkbook(encoded: string): Workbook {
         // indicates an invalid file format. We throw a single, clear error.
         throw new Error("Invalid file format. This does not appear to be a ReadySetPlay workbook file.");
     }
-}
-
-export function readFileAsText(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = () => reject(reader.error);
-        reader.readAsText(file);
-    });
 }
