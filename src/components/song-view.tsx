@@ -151,7 +151,7 @@ export function SongView({ song, workbookId, setlistId, onBack }: SongViewProps)
         <main className="flex-grow overflow-hidden pt-0">
             <Card className="h-full flex flex-col">
                 <ScrollArea className="flex-grow" viewportRef={viewportRef}>
-                    <CardContent className="p-2 text-xs font-mono whitespace-pre-wrap">
+                    <CardContent className="p-2 text-[10px] font-mono whitespace-pre-wrap">
                         {renderLyrics(transposedLyrics)}
                     </CardContent>
                 </ScrollArea>
