@@ -26,7 +26,7 @@ type Inputs = {
 };
 
 export function SongEditor({ workbookId, setlistId, song, transposedLyrics }: SongEditorProps) {
-  const { addSong, updateSong } = useAppContext();
+  const { addSong, updateSong, fontSize } = useAppContext();
   const [isOpen, setIsOpen] = useState(false);
   const { register, handleSubmit, reset, setValue } = useForm<Inputs>();
 
@@ -79,7 +79,8 @@ export function SongEditor({ workbookId, setlistId, song, transposedLyrics }: So
             <Textarea 
               {...register("lyricsWithChords")} 
               placeholder="Lyrics with chords, e.g., [Am]Some lyrics..."
-              className="h-96 font-mono text-[10px]"
+              className="h-96 font-mono"
+              style={{ fontSize: `${fontSize}px`, lineHeight: `${fontSize * 1.4}px` }}
             />
           </div>
           <DialogFooter>
@@ -93,3 +94,5 @@ export function SongEditor({ workbookId, setlistId, song, transposedLyrics }: So
     </Dialog>
   );
 }
+
+    

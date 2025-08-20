@@ -60,6 +60,10 @@ interface AppContextType {
   clearSetlistSelection: () => void;
   // --- End: State for Setlist Selection ---
 
+  // Font Size Controls
+  fontSize: number;
+  increaseFontSize: () => void;
+  decreaseFontSize: () => void;
 
   // State for Move/Copy Modal
   isActionModalOpen: boolean;
@@ -89,6 +93,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   // State for setlist selection
   const [selectedSetlistIds, setSelectedSetlistIds] = useState<string[]>([]);
   const [isSetlistSelectionModeActive, setIsSetlistSelectionModeActive] = useState(false);
+
+  // State for font size
+  const [fontSize, setFontSize] = useLocalStorage<number>('fontSize_v2', 10);
 
 
   // State for the Move/Copy modal
@@ -485,6 +492,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
       closeActionModal();
   };
 
+  const increaseFontSize = () => setFontSize(prev => Math.min(prev + 1, 30));
+  const decreaseFontSize = () => setFontSize(prev => Math.max(prev - 1, 6));
+
   const activeWorkbook = isLoading ? null : workbooks.find(w => w.id === activeWorkbookId) || null;
   const activeSetlist = isLoading ? null : activeWorkbook?.setlists.find(s => s.id === activeSetlistId) || null;
   const activeSong = isLoading ? null : activeSetlist?.songs.find(s => s.id === activeSongId) || null;
@@ -502,6 +512,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
     selectedSetlistIds, isSetlistSelectionModeActive, setIsSetlistSelectionModeActive, handleSetlistSelectionChange, clearSetlistSelection,
 
+    fontSize, increaseFontSize, decreaseFontSize,
+
     isActionModalOpen, actionModalMode, actionSource,
     openActionModal, closeActionModal, confirmSongAction,
   };
@@ -516,3 +528,5 @@ export function useAppContext() {
   }
   return context;
 }
+
+    

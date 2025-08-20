@@ -6,7 +6,7 @@ import type { Song } from '@/lib/types';
 import { useAppContext } from '@/contexts/app-provider';
 import { Button } from '@/components/ui/button';
 import { transpose } from '@/lib/transpose';
-import { ArrowLeft, Minus, Plus, Play, Pause } from 'lucide-react';
+import { ArrowLeft, Minus, Plus, Play, Pause, ZoomIn, ZoomOut } from 'lucide-react';
 import { SongEditor } from './song-editor';
 import { Card, CardContent } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -36,17 +36,18 @@ const isChordLine = (line: string): boolean => {
 };
 
 
-const renderLyrics = (text: string) => {
+const renderLyrics = (text: string, fontSize: number) => {
+  const style = { fontSize: `${fontSize}px`, lineHeight: `${fontSize * 1.4}px` };
   return text.split('\n').map((line, lineIndex) => {
     if (isChordLine(line)) {
         return (
-            <p key={lineIndex} className="font-bold text-accent leading-tight">
+            <p key={lineIndex} className="font-bold text-accent" style={style}>
                 {line}
             </p>
         );
     }
     return (
-        <p key={lineIndex} className="mb-1 leading-tight">
+        <p key={lineIndex} className="mb-1" style={style}>
         {line.split(/(\[[^\]]+\])/g).map((part, partIndex) => {
             if (part.startsWith('[') && part.endsWith(']')) {
             return (
@@ -63,7 +64,7 @@ const renderLyrics = (text: string) => {
 };
 
 export function SongView({ song, workbookId, setlistId, onBack }: SongViewProps) {
-  const { updateSong } = useAppContext();
+  const { updateSong, fontSize, increaseFontSize, decreaseFontSize } = useAppContext();
   const [isScrolling, setIsScrolling] = useState(false);
   const [scrollSpeed, setScrollSpeed] = useState(song.scrollSpeed || 10);
   const scrollRef = useRef<number | null>(null);
@@ -151,15 +152,15 @@ export function SongView({ song, workbookId, setlistId, onBack }: SongViewProps)
         <main className="flex-grow overflow-hidden pt-0">
             <Card className="h-full flex flex-col">
                 <ScrollArea className="flex-grow" viewportRef={viewportRef}>
-                    <CardContent className="p-2 text-[10px] font-mono whitespace-pre-wrap">
-                        {renderLyrics(transposedLyrics)}
+                    <CardContent className="p-2 font-mono whitespace-pre-wrap">
+                        {renderLyrics(transposedLyrics, fontSize)}
                     </CardContent>
                 </ScrollArea>
             </Card>
         </main>
 
         <footer className="flex-shrink-0 bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-2 z-10 mb-3">
-            <div className="max-w-4xl mx-auto grid grid-cols-3 gap-2 items-center">
+            <div className="max-w-4xl mx-auto grid grid-cols-4 gap-2 items-center">
                 <div className="flex items-center gap-1">
                     <h3 className="text-xs font-semibold hidden md:block">Key</h3>
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleTranspose(-1)}><Minus/></Button>
@@ -179,8 +180,17 @@ export function SongView({ song, workbookId, setlistId, onBack }: SongViewProps)
                     <span className="font-bold text-base w-10 text-center">{scrollSpeed}</span>
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => handleScrollSpeedChange(1)}><Plus/></Button>
                 </div>
+                
+                <div className="flex items-center justify-end gap-1">
+                    <h3 className="text-xs font-semibold hidden md:block">Size</h3>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={decreaseFontSize}><ZoomOut/></Button>
+                    <span className="font-bold text-base w-10 text-center">{fontSize}</span>
+                    <Button variant="outline" size="icon" className="h-8 w-8" onClick={increaseFontSize}><ZoomIn/></Button>
+                </div>
             </div>
         </footer>
     </div>
   );
 }
+
+    
