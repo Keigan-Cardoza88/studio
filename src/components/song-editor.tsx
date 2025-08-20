@@ -68,7 +68,7 @@ export function SongEditor({ workbookId, setlistId, song, transposedLyrics }: So
           </Button>
         )}
       </DialogTrigger>
-      <DialogContent className="sm:max-w-[625px]">
+      <DialogContent className="sm:max-w-4xl">
         <DialogHeader>
           <DialogTitle>{song ? 'Edit Song' : 'Add New Song'}</DialogTitle>
         </DialogHeader>
@@ -79,7 +79,7 @@ export function SongEditor({ workbookId, setlistId, song, transposedLyrics }: So
             <Textarea 
               {...register("lyricsWithChords")} 
               placeholder="Lyrics with chords, e.g., [Am]Some lyrics..."
-              className="h-64 font-mono"
+              className="h-96 font-mono text-xs"
             />
           </div>
           <DialogFooter>
